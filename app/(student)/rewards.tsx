@@ -29,7 +29,7 @@ const sortOptions = ['Expiry Date', 'Name'];
 
 export default function StudentRewards() {
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user, refreshUserBerries } = useAuth();
   const student = user as Student;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -131,6 +131,10 @@ export default function StudentRewards() {
       setAvailableBerries(res.remaining_berries);
       setClaimedRewardIds(prev => [...prev, reward.id?.toString()]);
       setShowClaimModal(true);
+      
+      // Refresh user's berries in the global context
+      await refreshUserBerries();
+      
       fetchRewards();
     } catch (e: any) {
       setClaimMessage(e.message || 'Failed to claim reward');
