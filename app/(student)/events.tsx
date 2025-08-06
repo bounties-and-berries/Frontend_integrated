@@ -11,7 +11,8 @@ import {
   Pressable,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { searchEvents, registerForEvent, getMyParticipations } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { searchEvents, registerForEvent } from '@/utils/api';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
 import { Search, Calendar, MapPin, Users, Star, Filter, Clock, CircleCheck as CheckCircle, Trophy, X } from 'lucide-react-native';
@@ -21,6 +22,7 @@ const eventSections = ['Upcoming', 'Registered', 'Completed'];
 
 export default function StudentEvents() {
   const { theme } = useTheme();
+  const { refreshUserBerries } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSection, setSelectedSection] = useState('Upcoming');
@@ -32,7 +34,6 @@ export default function StudentEvents() {
   const [events, setEvents] = useState<any[]>([]); // for rendering current section
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [participations, setParticipations] = useState<any[]>([]);
   const [registeringId, setRegisteringId] = useState<string | null>(null);
   const [registerMessage, setRegisterMessage] = useState('');
   const [lastRegisteredId, setLastRegisteredId] = useState<string | null>(null);
@@ -42,19 +43,47 @@ export default function StudentEvents() {
     setLoading(true);
     setError('');
     try {
-      const [participationsRes, upcomingRes, registeredRes, completedRes] = await Promise.all([
-        getMyParticipations(),
-        searchEvents({ filters: { status: 'upcoming', name: searchQuery || undefined, type: selectedCategory !== 'All' ? selectedCategory : undefined }, sortBy: 'scheduled_date', sortOrder: 'asc', pageNumber: 1, pageSize: 50 }),
-        searchEvents({ filters: { status: 'registered', name: searchQuery || undefined, type: selectedCategory !== 'All' ? selectedCategory : undefined }, sortBy: 'scheduled_date', sortOrder: 'asc', pageNumber: 1, pageSize: 50 }),
-        searchEvents({ filters: { status: 'completed', name: searchQuery || undefined, type: selectedCategory !== 'All' ? selectedCategory : undefined }, sortBy: 'scheduled_date', sortOrder: 'asc', pageNumber: 1, pageSize: 50 }),
+      const [upcomingRes, registeredRes, completedRes] = await Promise.all([
+        searchEvents({ 
+          filters: { 
+            status: 'upcoming', 
+            name: searchQuery || undefined, 
+            type: selectedCategory !== 'All' ? selectedCategory : undefined 
+          }, 
+          sortBy: 'scheduled_date', 
+          sortOrder: 'asc', 
+          pageNumber: 1, 
+          pageSize: 50 
+        }),
+        searchEvents({ 
+          filters: { 
+            status: 'registered', 
+            name: searchQuery || undefined, 
+            type: selectedCategory !== 'All' ? selectedCategory : undefined 
+          }, 
+          sortBy: 'scheduled_date', 
+          sortOrder: 'asc', 
+          pageNumber: 1, 
+          pageSize: 50 
+        }),
+        searchEvents({ 
+          filters: { 
+            status: 'completed', 
+            name: searchQuery || undefined, 
+            type: selectedCategory !== 'All' ? selectedCategory : undefined 
+          }, 
+          sortBy: 'scheduled_date', 
+          sortOrder: 'asc', 
+          pageNumber: 1, 
+          pageSize: 50 
+        }),
       ]);
-      setParticipations(participationsRes.participations || []);
-      const registeredBountyIds = new Set((participationsRes.participations || []).map((p: any) => p.bounty_id));
-      const addStatus = (arr: any[]) => arr.map((event: any) => ({ ...event, is_registered: registeredBountyIds.has(event.id) }));
+      
+      // The API now returns is_registered status directly in the response
       setSectionEvents({
-        Upcoming: addStatus(upcomingRes.results || []),
-        Registered: addStatus(registeredRes.results || []),
-        Completed: addStatus(completedRes.results || []),
+        Upcoming: upcomingRes.results || [],
+        Registered: registeredRes.results || [],
+        Completed: completedRes.results || [],
       });
     } catch (e: any) {
       setError(e.message || 'Failed to fetch events');
@@ -88,32 +117,12 @@ export default function StudentEvents() {
       const res = await registerForEvent(eventId);
       setRegisterMessage(res.message || 'Registered successfully!');
       setLastRegisteredId(eventId);
-      // Update local events state using registeredBounties from response
-      if (res.registeredBounties) {
-        // Update all sectionEvents to reflect new registration status
-        setSectionEvents(prevSections => {
-          const updateSection = (eventsArr: any[]) =>
-            eventsArr.map(ev => ({
-              ...ev,
-              is_registered: res.registeredBounties.includes(ev.id?.toString()),
-            }));
-          return {
-            ...prevSections,
-            Upcoming: updateSection(prevSections.Upcoming || []),
-            Registered: updateSection(prevSections.Registered || []),
-            Completed: updateSection(prevSections.Completed || []),
-          };
-        });
-        // Also update the currently displayed events
-        setEvents(prevEvents => prevEvents.map(ev => ({
-          ...ev,
-          is_registered: res.registeredBounties.includes(ev.id?.toString()),
-        })));
-      }
-      setRegisteringId(null);
-      setTimeout(() => {
+      
+      // Refresh all sections to get updated registration status
+      setTimeout(async () => {
         setRegisterMessage('');
         setLastRegisteredId(null);
+        await refreshUserBerries(); // Refresh user's berries
         fetchAllSectionEvents(); // Refresh all sections from backend
       }, 2000);
     } catch (e: any) {

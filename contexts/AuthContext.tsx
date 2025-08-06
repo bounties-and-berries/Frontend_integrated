@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Student, Faculty, Admin } from '@/types';
 import { mockUsers } from '@/data/mockData';
 import { jwtDecode } from 'jwt-decode';
-import { loginApi } from '@/utils/api';
+import { loginApi, getUserAvailableBerries } from '@/utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthContextType {
@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string, role: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  refreshUserBerries: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,12 +35,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.setItem('token', token);
       // Decode token to get user info
       const decoded: any = jwtDecode(token);
+      
+      // For students, fetch the correct available berries
+      let totalPoints = 0;
+      if (decoded.role === 'student') {
+        try {
+          const berriesData = await getUserAvailableBerries();
+          totalPoints = berriesData.availableBerries || 0;
+        } catch (error) {
+          console.warn('Failed to fetch available berries, using default value');
+          totalPoints = 0;
+        }
+      }
+      
       setUser({
         id: decoded.id,
         name: decoded.name,
         email: decoded.email || '', // TODO: fetch user profile for full info
         role: decoded.role,
         createdAt: '', // TODO: fetch user profile for full info
+        ...(decoded.role === 'student' && { totalPoints }),
       });
       setIsLoading(false);
       return true;
@@ -49,12 +64,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUserBerries = async () => {
+    if (user?.role === 'student') {
+      try {
+        const berriesData = await getUserAvailableBerries();
+        const availableBerries = berriesData.availableBerries || 0;
+        setUser(prev => prev ? { ...prev, totalPoints: availableBerries } : null);
+      } catch (error) {
+        console.warn('Failed to refresh user berries');
+      }
+    }
+  };
+
   const logout = () => {
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, refreshUserBerries }}>
       {children}
     </AuthContext.Provider>
   );

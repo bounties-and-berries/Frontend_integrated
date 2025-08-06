@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-export const BASE_URL = 'http://192.168.56.1:3000';
+export const BASE_URL = 'http://23.21.26.208:3000'; // AWS EC2 public IPV4
 
 export async function loginApi(name: string, password: string, role: string) {
   try {
@@ -144,6 +144,16 @@ export async function deleteEvent(id: string) {
   }
 }
 
+/**
+ * Search events/bounties with filters
+ * @param filters - Object containing search parameters
+ * @param filters.filters - Object with filter criteria (status, name, type, etc.)
+ * @param filters.sortBy - Field to sort by (e.g., 'scheduled_date')
+ * @param filters.sortOrder - Sort order ('asc' or 'desc')
+ * @param filters.pageNumber - Page number for pagination
+ * @param filters.pageSize - Number of items per page
+ * @returns Promise with search results including is_registered status
+ */
 export async function searchEvents(filters: Record<string, any> = {}) {
   const headers = await getAuthHeaders();
   try {
@@ -208,6 +218,17 @@ export async function updateProfileImage(file: File | Blob) {
   } catch (error: any) {
     throw new Error('Failed to update profile image');
   }
+}
+
+/**
+ * Get user's available berries (earned - spent)
+ * @returns Promise with user's available berries
+ */
+export async function getUserAvailableBerries() {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${BASE_URL}/api/users/available-berries`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch available berries');
+  return response.json();
 }
 
 // Participation APIs
