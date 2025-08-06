@@ -65,6 +65,27 @@ export interface Event {
   image?: string;
 }
 
+export interface Bounty {
+  id: number;
+  name: string;
+  description: string;
+  type: string;
+  img_url?: string;
+  image_hash?: string;
+  alloted_points: number;
+  alloted_berries: number;
+  scheduled_date: string;
+  venue: string;
+  capacity: number;
+  is_active: boolean;
+  created_by?: number;
+  modified_by?: number;
+  created_on?: string;
+  modified_on?: string;
+  current_participants?: number;
+  is_registered?: boolean;
+}
+
 export interface Reward {
   id: string;
   title: string;

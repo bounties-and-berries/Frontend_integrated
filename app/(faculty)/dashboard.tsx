@@ -12,7 +12,8 @@ import { mockUsers, mockTransactions } from '@/data/mockData';
 import { Student } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
-import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar } from 'lucide-react-native';
+import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ const filterOptions = ['All', 'Academic', 'Cultural', 'Volunteer', 'Attendance']
 
 export default function FacultyDashboard() {
   const { theme } = useTheme();
+  const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState('All');
   
   const students = mockUsers.filter(user => user.role === 'student') as Student[];
@@ -29,6 +31,14 @@ export default function FacultyDashboard() {
   const recentTransactions = mockTransactions
     .filter(t => t.type === 'earned')
     .slice(0, 10);
+
+  const handleCreateEvent = () => {
+    router.push('/(faculty)/events');
+  };
+
+  const handleViewEvents = () => {
+    router.push('/(faculty)/events');
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -46,6 +56,29 @@ export default function FacultyDashboard() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Quick Actions
+          </Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity
+              style={[styles.quickActionCard, { backgroundColor: theme.colors.primary }]}
+              onPress={handleCreateEvent}
+            >
+              <Plus size={24} color="#FFFFFF" />
+              <Text style={styles.quickActionText}>Create Event</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickActionCard, { backgroundColor: theme.colors.secondary }]}
+              onPress={handleViewEvents}
+            >
+              <CalendarDays size={24} color="#FFFFFF" />
+              <Text style={styles.quickActionText}>View Events</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Overview Cards */}
         <View style={styles.section}>
           <GradientCard gradientColors={theme.colors.gradient.primary}>
@@ -264,6 +297,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 16,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionCard: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+  },
   overviewCard: {
     gap: 16,
   },
@@ -322,11 +378,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: 16,
   },
   filterButtons: {
     flexDirection: 'row',
