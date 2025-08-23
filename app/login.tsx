@@ -127,19 +127,19 @@ export default function LoginScreen() {
                 styles.title,
                 {
                   color: theme.colors.card,
-                  fontSize: 30,
+                  fontSize: 36,
                   fontFamily: 'Poppins-Bold',
-                  letterSpacing: 0.5,
+                  letterSpacing: 2,
                 },
               ]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              Bounties & Berries
+              B & B
             </Text>
 
-            <Text style={[styles.subtitle, { color: theme.colors.card }]}>
-              Because you are more than marks!
+            <Text style={[styles.tagline, { color: theme.colors.card }]}>
+              Because you're more than marks
             </Text>
           </Animated.View>
 
@@ -283,6 +283,15 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontFamily: 'Poppins-Bold',
     marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
+    opacity: 0.9,
+    marginBottom: 8,
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,

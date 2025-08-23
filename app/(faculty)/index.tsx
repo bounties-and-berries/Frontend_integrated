@@ -17,7 +17,7 @@ import { mockAchievements, mockEvents } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Rss } from 'lucide-react-native';
+import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -244,14 +244,14 @@ export default function FacultyHome() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/feeds')}
+              onPress={() => router.push('/(faculty)/student-progress')}
             >
               <LinearGradient
                 colors={theme.colors.gradient.accent}
                 style={styles.actionButtonGradient}
               >
-                <Rss size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Feeds</Text>
+                <TrendingUp size={24} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Student Progress</Text>
               </LinearGradient>
             </TouchableOpacity>
             

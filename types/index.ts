@@ -20,7 +20,6 @@ export interface Faculty extends User {
   role: 'faculty';
   department: string;
   subject: string;
-  qrCode: string;
 }
 
 export interface Admin extends User {

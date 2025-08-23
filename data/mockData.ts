@@ -21,7 +21,6 @@ export const mockUsers: (Student | Faculty | Admin)[] = [
     role: 'faculty',
     department: 'Computer Science',
     subject: 'Data Structures',
-    qrCode: 'FAC_12345',
     createdAt: '2024-01-10',
     profileImage: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
   },

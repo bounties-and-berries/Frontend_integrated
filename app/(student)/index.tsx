@@ -16,7 +16,7 @@ import { searchEvents } from '@/utils/api';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Trophy, Star, TrendingUp, Calendar, Gift, Home, History, Rss } from 'lucide-react-native';
+import { Trophy, Star, TrendingUp, Calendar, Gift, Home, History } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -224,18 +224,7 @@ export default function StudentHome() {
               </LinearGradient>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(student)/feeds')}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669'] as [string, string]}
-                style={styles.actionButtonGradient}
-              >
-                <Rss size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Feeds</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+
           </View>
         </View>
       </ScrollView>

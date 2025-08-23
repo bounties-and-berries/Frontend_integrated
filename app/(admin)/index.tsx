@@ -17,7 +17,7 @@ import { mockUsers, mockTransactions, mockEvents } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Users, TrendingUp, Award, Calendar, ChartBar as BarChart3, Shield, Activity, UserPlus, Rss } from 'lucide-react-native';
+import { Users, TrendingUp, Award, Calendar, ChartBar as BarChart3, Shield, Activity, UserPlus } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -216,18 +216,7 @@ export default function AdminHome() {
               </LinearGradient>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(admin)/feeds')}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.actionButtonGradient}
-              >
-                <Rss size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Feeds</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+
           </View>
         </View>
       </ScrollView>

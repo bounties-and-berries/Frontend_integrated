@@ -14,6 +14,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { searchEvents, createEvent } from '@/utils/api';
 import { Bounty } from '@/types';
+import { mockEvents } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
 import { Plus, Search, Calendar, MapPin, Users, CreditCard as Edit, Trash2, Award } from 'lucide-react-native';
@@ -130,7 +131,41 @@ export default function FacultyEvents() {
       const res = await searchEvents(filters);
       setEvents(res.results || []);
     } catch (e: any) {
-      setError(e.message || 'Failed to fetch events');
+      console.log('API Error:', e.message);
+      console.log('Error details:', {
+        message: e.message,
+        status: e.response?.status,
+        data: e.response?.data
+      });
+      // Fallback to mock data when API fails
+      const mockBounties: Bounty[] = mockEvents.map((event, index) => ({
+        id: index + 1,
+        name: event.title,
+        description: event.description,
+        type: event.category,
+        img_url: event.image,
+        alloted_points: event.points,
+        alloted_berries: 0,
+        scheduled_date: event.date,
+        venue: event.location,
+        capacity: event.maxParticipants,
+        current_participants: event.currentParticipants,
+        is_active: new Date(event.registrationDeadline) > new Date(),
+        created_by: 2,
+        created_on: event.date,
+        modified_on: event.date,
+      }));
+      
+      // Filter mock data based on search query
+      const filteredMockData = searchQuery 
+        ? mockBounties.filter(event => 
+            event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            event.description.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : mockBounties;
+      
+             setEvents(filteredMockData);
+       setError('Using demo data - API permissions unavailable');
     } finally {
       setLoading(false);
     }
@@ -565,10 +600,16 @@ export default function FacultyEvents() {
             <View style={styles.emptyState}>
               <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>Loading events...</Text>
             </View>
-          ) : error ? (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyStateText, { color: theme.colors.error }]}>{error}</Text>
-            </View>
+                     ) : error ? (
+             <View style={styles.emptyState}>
+               <Text style={[styles.emptyStateText, { color: theme.colors.warning || '#F59E0B' }]}>{error}</Text>
+               <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary, fontSize: 14, marginTop: 8 }]}>
+                 Search functionality is working with demo data
+               </Text>
+               <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary, fontSize: 12, marginTop: 4 }]}>
+                 Try searching for: "hackathon", "cultural", "cleanup"
+               </Text>
+             </View>
           ) : filteredEvents.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>No events found.</Text>

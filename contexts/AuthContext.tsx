@@ -26,15 +26,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 500);
   }, []);
 
-  const login = async (name: string, password: string, role: string): Promise<boolean> => {
+  const login = async (email: string, password: string, role: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const data = await loginApi(name, password, role);
+      console.log('Attempting login with:', { email, role });
+      const data = await loginApi(email, password, role);
       const { token } = data;
+      console.log('Login successful, token received');
+      
       // Store token using AsyncStorage for React Native
       await AsyncStorage.setItem('token', token);
       // Decode token to get user info
       const decoded: any = jwtDecode(token);
+      console.log('Token decoded:', { id: decoded.id, name: decoded.name, role: decoded.role });
       
       // For students, fetch the correct available berries
       let totalPoints = 0;
@@ -58,7 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setIsLoading(false);
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login failed:', error);
       setIsLoading(false);
       return false;
     }
@@ -76,8 +81,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
+  const logout = async () => {
+    try {
+      // Clear stored token
+      await AsyncStorage.removeItem('token');
+      // Reset user state
+      setUser(null);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still reset user state even if token removal fails
+      setUser(null);
+      setIsLoading(false);
+    }
   };
 
   return (

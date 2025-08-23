@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { mockUsers, mockTransactions } from '@/data/mockData';
 import { Student } from '@/types';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Search, TrendingUp, Award, Calendar, Users, Filter } from 'lucide-react-native';
+import { Search, TrendingUp, Award, Calendar, Users, Filter, Star, Target, Zap } from 'lucide-react-native';
+
+const { width } = Dimensions.get('window');
 
 const departmentFilters = ['All', 'Computer Science', 'Engineering', 'Business', 'Arts'];
 const yearFilters = ['All', '1', '2', '3', '4'];
@@ -49,89 +53,117 @@ export default function StudentProgress() {
     };
   };
 
+  const getPerformanceLevel = (points: number) => {
+    if (points >= 2000) return { level: 'Elite', color: '#FFD700', gradient: ['#FFD700', '#FFA500'] };
+    if (points >= 1500) return { level: 'Excellent', color: '#4CAF50', gradient: ['#4CAF50', '#45A049'] };
+    if (points >= 1000) return { level: 'Good', color: '#2196F3', gradient: ['#2196F3', '#1976D2'] };
+    if (points >= 500) return { level: 'Average', color: '#FF9800', gradient: ['#FF9800', '#F57C00'] };
+    return { level: 'Beginner', color: '#9E9E9E', gradient: ['#9E9E9E', '#757575'] };
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopMenuBar 
         title="Student Progress"
-        subtitle="Monitor individual student performance"
+        subtitle="Track individual performance & achievements"
       />
 
-      {/* Search and Filters */}
+      {/* Modern Search and Filter Section */}
       <View style={styles.filtersSection}>
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        {/* Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: theme.colors.card }]}>
           <Search size={20} color={theme.colors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: theme.colors.text }]}
-            placeholder="Search students..."
+            placeholder="Search students by name..."
             placeholderTextColor={theme.colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.filterButtons}>
-            <Text style={[styles.filterLabel, { color: theme.colors.text }]}>Department:</Text>
-            {departmentFilters.map((dept) => (
-              <TouchableOpacity
-                key={dept}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor: selectedDepartment === dept 
-                      ? theme.colors.primary 
-                      : theme.colors.surface,
-                    borderColor: theme.colors.border,
-                  }
-                ]}
-                onPress={() => setSelectedDepartment(dept)}
-              >
-                <Text style={[
-                  styles.filterButtonText,
-                  { 
-                    color: selectedDepartment === dept 
-                      ? '#FFFFFF' 
-                      : theme.colors.textSecondary 
-                  }
-                ]}>
-                  {dept}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Modern Filter Pills */}
+        <View style={styles.filterPillsContainer}>
+          <View style={styles.filterRow}>
+            <View style={styles.filterLabelContainer}>
+              <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>
+                Department
+              </Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsScroll}>
+              <View style={styles.pillsContainer}>
+                {departmentFilters.map((dept) => (
+                  <TouchableOpacity
+                    key={dept}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: selectedDepartment === dept 
+                          ? theme.colors.primary 
+                          : 'transparent',
+                        borderColor: selectedDepartment === dept 
+                          ? theme.colors.primary 
+                          : theme.colors.border,
+                      }
+                    ]}
+                    onPress={() => setSelectedDepartment(dept)}
+                  >
+                    <Text style={[
+                      styles.filterPillText,
+                      { 
+                        color: selectedDepartment === dept 
+                          ? '#FFFFFF' 
+                          : theme.colors.textSecondary 
+                      }
+                    ]}>
+                      {dept}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
-        </ScrollView>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.filterButtons}>
-            <Text style={[styles.filterLabel, { color: theme.colors.text }]}>Year:</Text>
-            {yearFilters.map((year) => (
-              <TouchableOpacity
-                key={year}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor: selectedYear === year 
-                      ? theme.colors.secondary 
-                      : theme.colors.surface,
-                    borderColor: theme.colors.border,
-                  }
-                ]}
-                onPress={() => setSelectedYear(year)}
-              >
-                <Text style={[
-                  styles.filterButtonText,
-                  { 
-                    color: selectedYear === year 
-                      ? '#FFFFFF' 
-                      : theme.colors.textSecondary 
-                  }
-                ]}>
-                  {year === 'All' ? 'All Years' : `Year ${year}`}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.filterRow}>
+            <View style={styles.filterLabelContainer}>
+              <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>
+                Year
+              </Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsScroll}>
+              <View style={styles.pillsContainer}>
+                {yearFilters.map((year) => (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: selectedYear === year 
+                          ? theme.colors.secondary 
+                          : 'transparent',
+                        borderColor: selectedYear === year 
+                          ? theme.colors.secondary 
+                          : theme.colors.border,
+                      }
+                    ]}
+                    onPress={() => setSelectedYear(year)}
+                  >
+                    <Text style={[
+                      styles.filterPillText,
+                      { 
+                        color: selectedYear === year 
+                          ? '#FFFFFF' 
+                          : theme.colors.textSecondary 
+                      }
+                    ]}>
+                      {year === 'All' ? 'All Years' : `Year ${year}`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Students List */}
@@ -142,116 +174,124 @@ export default function StudentProgress() {
         <View style={styles.studentsContainer}>
           {filteredStudents.length === 0 ? (
             <AnimatedCard style={styles.emptyCard}>
-              <View style={styles.emptyContent}>
-                <Users size={48} color={theme.colors.textSecondary} />
-                <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-                  No Students Found
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                  Try adjusting your search or filters.
-                </Text>
-              </View>
+              <LinearGradient
+                colors={['rgba(99, 102, 241, 0.1)', 'rgba(99, 102, 241, 0.05)']}
+                style={styles.emptyGradient}
+              >
+                <View style={styles.emptyContent}>
+                  <View style={[styles.emptyIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                    <Users size={32} color={theme.colors.primary} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+                    No Students Found
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                    Try adjusting your search criteria or filters
+                  </Text>
+                </View>
+              </LinearGradient>
             </AnimatedCard>
           ) : (
-            filteredStudents.map((student) => {
+            filteredStudents.map((student, index) => {
               const progress = getStudentProgress(student.id);
+              const performance = getPerformanceLevel(student.totalPoints);
               
               return (
                 <AnimatedCard key={student.id} style={styles.studentCard}>
-                  <View style={styles.studentContent}>
-                    <View style={styles.studentHeader}>
-                      <Image
-                        source={{ uri: student.profileImage }}
-                        style={styles.studentImage}
-                      />
-                      <View style={styles.studentInfo}>
-                        <Text style={[styles.studentName, { color: theme.colors.text }]}>
-                          {student.name}
-                        </Text>
-                        <Text style={[styles.studentDetails, { color: theme.colors.textSecondary }]}>
-                          {student.department} • Year {student.year}
-                        </Text>
-                        <Text style={[styles.studentEmail, { color: theme.colors.textSecondary }]}>
-                          {student.email}
-                        </Text>
+                  <LinearGradient
+                    colors={performance.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                  >
+                    <View style={styles.cardContent}>
+                      {/* Header Section */}
+                      <View style={styles.studentHeader}>
+                        <View style={styles.profileSection}>
+                          <View style={styles.imageContainer}>
+                            <Image
+                              source={{ uri: student.profileImage }}
+                              style={styles.studentImage}
+                            />
+                            <View style={[styles.statusBadge, { backgroundColor: performance.color }]}>
+                              <Star size={8} color="#FFFFFF" />
+                            </View>
+                          </View>
+                          <View style={styles.studentInfo}>
+                            <Text style={styles.studentName}>
+                              {student.name}
+                            </Text>
+                            <Text style={styles.studentDetails}>
+                              {student.department} • Year {student.year}
+                            </Text>
+                            <View style={styles.performanceBadge}>
+                              <Text style={styles.performanceText}>
+                                {performance.level}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={styles.pointsSection}>
+                          <Text style={styles.totalPointsValue}>
+                            {student.totalPoints.toLocaleString()}
+                          </Text>
+                          <Text style={styles.totalPointsLabel}>
+                            Total Berries
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.totalPoints}>
-                        <Text style={[styles.totalPointsValue, { color: theme.colors.primary }]}>
-                          {student.totalPoints}
-                        </Text>
-                        <Text style={[styles.totalPointsLabel, { color: theme.colors.textSecondary }]}>
-                          total berries
-                        </Text>
+
+                      {/* Stats Grid */}
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                          <View style={[styles.statIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                            <Zap size={16} color="#FFFFFF" />
+                          </View>
+                          <Text style={styles.statValue}>{progress.thisMonth}</Text>
+                          <Text style={styles.statLabel}>This Month</Text>
+                        </View>
+
+                        <View style={styles.statCard}>
+                          <View style={[styles.statIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                            <Award size={16} color="#FFFFFF" />
+                          </View>
+                          <Text style={styles.statValue}>{progress.activitiesCount}</Text>
+                          <Text style={styles.statLabel}>Activities</Text>
+                        </View>
+
+                        <View style={styles.statCard}>
+                          <View style={[styles.statIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                            <Target size={16} color="#FFFFFF" />
+                          </View>
+                          <Text style={styles.statValue}>{Math.floor(Math.random() * 30) + 70}%</Text>
+                          <Text style={styles.statLabel}>Attendance</Text>
+                        </View>
+                      </View>
+
+                      {/* Progress Bar */}
+                      <View style={styles.progressSection}>
+                        <View style={styles.progressHeader}>
+                          <Text style={styles.progressLabel}>Monthly Goal Progress</Text>
+                          <Text style={styles.progressPercentage}>
+                            {Math.round((progress.thisMonth / 500) * 100)}%
+                          </Text>
+                        </View>
+                        <View style={styles.progressBarContainer}>
+                          <View style={styles.progressBar}>
+                            <View 
+                              style={[
+                                styles.progressFill, 
+                                { 
+                                  width: `${Math.min((progress.thisMonth / 500) * 100, 100)}%`,
+                                }
+                              ]} 
+                            />
+                          </View>
+                          <Text style={styles.progressTarget}>Target: 500 berries</Text>
+                        </View>
                       </View>
                     </View>
-
-                    <View style={styles.progressStats}>
-                      <View style={styles.statItem}>
-                        <View style={[styles.statIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                          <TrendingUp size={16} color={theme.colors.success} />
-                        </View>
-                        <View>
-                          <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                            {progress.thisMonth}
-                          </Text>
-                          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                            This Month
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.statItem}>
-                        <View style={[styles.statIcon, { backgroundColor: theme.colors.accent + '20' }]}>
-                          <Award size={16} color={theme.colors.accent} />
-                        </View>
-                        <View>
-                          <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                            {progress.activitiesCount}
-                          </Text>
-                          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                            Activities
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.statItem}>
-                        <View style={[styles.statIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                          <Calendar size={16} color={theme.colors.primary} />
-                        </View>
-                        <View>
-                          <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                            {Math.floor(Math.random() * 30) + 70}%
-                          </Text>
-                          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                            Attendance
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Progress Bar */}
-                    <View style={styles.progressBarContainer}>
-                      <View style={styles.progressBarHeader}>
-                        <Text style={[styles.progressBarLabel, { color: theme.colors.textSecondary }]}>
-                          Monthly Progress
-                        </Text>
-                        <Text style={[styles.progressBarValue, { color: theme.colors.primary }]}>
-                          {Math.round((progress.thisMonth / 500) * 100)}%
-                        </Text>
-                      </View>
-                      <View style={[styles.progressBar, { backgroundColor: theme.colors.border }]}>
-                        <View 
-                          style={[
-                            styles.progressFill, 
-                            { 
-                              width: `${Math.min((progress.thisMonth / 500) * 100, 100)}%`,
-                              backgroundColor: theme.colors.primary 
-                            }
-                          ]} 
-                        />
-                      </View>
-                    </View>
-                  </View>
+                  </LinearGradient>
                 </AnimatedCard>
               );
             })
@@ -269,41 +309,68 @@ const styles = StyleSheet.create({
   filtersSection: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    gap: 12,
+    gap: 16,
   },
-  searchBar: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
   },
-  filterButtons: {
+  filterPillsContainer: {
+    gap: 12,
+  },
+  filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  filterLabelContainer: {
+    minWidth: 80,
   },
   filterLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
-    marginRight: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
+  pillsScroll: {
+    flex: 1,
   },
-  filterButtonText: {
-    fontSize: 12,
+  pillsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 20,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    minWidth: 80,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterPillText: {
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
   studentsList: {
     flex: 1,
@@ -314,12 +381,22 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyCard: {
-    alignItems: 'center',
-    paddingVertical: 40,
+    marginBottom: 0,
+  },
+  emptyGradient: {
+    borderRadius: 16,
+    padding: 40,
   },
   emptyContent: {
     alignItems: 'center',
     gap: 16,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyTitle: {
     fontSize: 20,
@@ -329,58 +406,102 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
+    opacity: 0.8,
   },
   studentCard: {
     marginBottom: 0,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  studentContent: {
-    gap: 16,
+  cardGradient: {
+    borderRadius: 20,
+  },
+  cardContent: {
+    padding: 20,
+    gap: 20,
   },
   studentHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  profileSection: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+  },
+  imageContainer: {
+    position: 'relative',
   },
   studentImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  statusBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   studentInfo: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   studentName: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
   },
   studentDetails: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
-  studentEmail: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+  performanceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
   },
-  totalPoints: {
+  performanceText: {
+    fontSize: 10,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  pointsSection: {
     alignItems: 'flex-end',
   },
   totalPointsValue: {
     fontSize: 24,
     fontFamily: 'Poppins-Bold',
+    color: '#FFFFFF',
   },
   totalPointsLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  progressStats: {
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  statItem: {
-    flexDirection: 'row',
+  statCard: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   statIcon: {
     width: 32,
@@ -390,35 +511,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
-  progressBarContainer: {
+  progressSection: {
     gap: 8,
   },
-  progressBarHeader: {
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  progressBarLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-  },
-  progressBarValue: {
-    fontSize: 12,
+  progressLabel: {
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
+  },
+  progressBarContainer: {
+    gap: 6,
   },
   progressBar: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+  },
+  progressTarget: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'right',
   },
 });

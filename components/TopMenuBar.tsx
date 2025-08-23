@@ -9,7 +9,6 @@ import {
   Image,
   Dimensions,
   Alert,
-  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -28,14 +27,14 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  FileText,
   Bell,
   Sun,
   Moon,
   Coins,
   Home,
   ArrowLeft,
-  Rss
+  Rss,
+  FileText
 } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -158,10 +157,7 @@ export default function TopMenuBar({
     );
   };
 
-  const handleTerms = () => {
-    closeMenu();
-    setTimeout(() => router.push('/terms' as any), 250);
-  };
+
 
   // Role-specific menu items
   const getMenuItems = () => {
@@ -179,14 +175,7 @@ export default function TopMenuBar({
 
     if (user?.role === 'student') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'View college announcements and updates',
-          icon: Rss,
-          route: '/(student)/feeds',
-          color: theme.colors.primary,
-        },
+
         {
           id: 'history',
           title: 'History',
@@ -215,26 +204,11 @@ export default function TopMenuBar({
       ];
     } else if (user?.role === 'faculty') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'View and create college announcements',
-          icon: Rss,
-          route: '/(faculty)/feeds',
-          color: theme.colors.primary,
-        },
         ...baseItems,
       ];
     } else if (user?.role === 'admin') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'Manage college announcements and posts',
-          icon: Rss,
-          route: '/(admin)/feeds',
-          color: theme.colors.primary,
-        },
+
         {
           id: 'rules',
           title: 'Point Rules',
@@ -289,6 +263,21 @@ export default function TopMenuBar({
           </View>
           
           <View style={styles.headerActions}>
+            {/* Theme Toggle Button */}
+            <Animated.View style={animatedButtonStyle}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
+                onPress={toggleTheme}
+                activeOpacity={0.7}
+              >
+                {isDark ? (
+                  <Sun size={20} color={theme.colors.primary} />
+                ) : (
+                  <Moon size={20} color={theme.colors.primary} />
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+
             {showNotifications && (
               <Animated.View style={animatedButtonStyle}>
                 <TouchableOpacity
@@ -411,50 +400,9 @@ export default function TopMenuBar({
                 </TouchableOpacity>
               ))}
               
-              {/* Dark Mode Toggle */}
-              <View style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}>
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                  thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-                />
-              </View>
+
               
-              {/* Terms & Conditions */}
-              <TouchableOpacity
-                style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}
-                onPress={handleTerms}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  <FileText size={20} color={theme.colors.primary} />
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
-                    Terms & Conditions
-                  </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
-                    Read our terms and conditions
-                  </Text>
-                </View>
-                <ChevronRight size={16} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
+
               
               {/* Logout */}
               <TouchableOpacity

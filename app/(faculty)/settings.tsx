@@ -14,10 +14,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { Faculty } from '@/types';
 import AnimatedCard from '@/components/AnimatedCard';
-import { User, Lock, Bell, CircleHelp as HelpCircle, FileText, MessageSquare, Camera, Moon, Sun, LogOut, ChevronRight } from 'lucide-react-native';
+import { User, Lock, Bell, CircleHelp as HelpCircle, MessageSquare, Camera, LogOut, ChevronRight } from 'lucide-react-native';
 
 export default function FacultySettings() {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
   const faculty = user as Faculty;
@@ -43,20 +43,27 @@ export default function FacultySettings() {
   };
 
   const handleChangePassword = () => {
-    Alert.alert('Change Password', 'This feature will be available soon.');
+    router.push('/(faculty)/change-password');
   };
 
   const handleRaiseQuery = () => {
-    Alert.alert('Raise Query', 'This feature will be available soon.');
+    router.push('/(faculty)/raise-query');
   };
 
   const handleUploadPhoto = () => {
-    Alert.alert('Upload Photo', 'This feature will be available soon.');
+    router.push('/(faculty)/profile-photo');
   };
 
   const settingsOptions = [
     {
       id: 'profile',
+      title: 'View Profile',
+      subtitle: 'View your complete profile',
+      icon: User,
+      onPress: () => router.push('/(faculty)/profile'),
+    },
+    {
+      id: 'photo',
       title: 'Profile Photo',
       subtitle: 'Change your profile picture',
       icon: Camera,
@@ -69,13 +76,7 @@ export default function FacultySettings() {
       icon: Lock,
       onPress: handleChangePassword,
     },
-    {
-      id: 'terms',
-      title: 'Terms & Conditions',
-      subtitle: 'Read our terms and conditions',
-      icon: FileText,
-      onPress: () => Alert.alert('Terms & Conditions', 'This will open the terms page.'),
-    },
+
     {
       id: 'query',
       title: 'Raise Query',
@@ -88,7 +89,7 @@ export default function FacultySettings() {
       title: 'Help & Support',
       subtitle: 'Get help with using the app',
       icon: HelpCircle,
-      onPress: () => Alert.alert('Help & Support', 'This will open the help center.'),
+      onPress: () => router.push('/(faculty)/help-support'),
     },
   ];
 
@@ -137,33 +138,7 @@ export default function FacultySettings() {
             Preferences
           </Text>
           
-          <AnimatedCard style={styles.settingCard}>
-            <View style={styles.settingContent}>
-              <View style={styles.settingInfo}>
-                <View style={[styles.settingIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View>
-                  <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-              />
-            </View>
-          </AnimatedCard>
+
 
           <AnimatedCard style={styles.settingCard}>
             <View style={styles.settingContent}>

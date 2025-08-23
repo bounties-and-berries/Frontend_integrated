@@ -1,14 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-export const BASE_URL = 'http://23.21.26.208:3000'; // AWS EC2 public IPV4
+export const BASE_URL = 'http://localhost:3000'; // Local development server
 
-export async function loginApi(name: string, password: string, role: string) {
+export async function loginApi(email: string, password: string, role: string) {
   try {
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, { name, password, role });
+    console.log('Login API Request:', { email, password, role, url: `${BASE_URL}/api/auth/login` });
+    // Backend expects 'name' field instead of 'email'
+    const response = await axios.post(`${BASE_URL}/api/auth/login`, { name: email, password, role });
+    console.log('Login API Response:', response.data);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Login failed');
+    console.error('Login API Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText
+    });
+    throw new Error(error.response?.data?.message || error.response?.data?.details || 'Login failed');
   }
 }
 
@@ -157,10 +166,36 @@ export async function deleteEvent(id: string) {
 export async function searchEvents(filters: Record<string, any> = {}) {
   const headers = await getAuthHeaders();
   try {
+    console.log('Search Events API Request:', {
+      url: `${BASE_URL}/api/bounties/search`,
+      filters,
+      headers: { ...headers, Authorization: headers.Authorization ? 'Bearer [REDACTED]' : 'No token' }
+    });
+    
     const response = await axios.post(`${BASE_URL}/api/bounties/search`, filters, { headers });
+    console.log('Search Events API Response:', response.data);
     return response.data;
   } catch (error: any) {
-    throw new Error('Failed to search events');
+    console.error('Search Events API Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: `${BASE_URL}/api/bounties/search`
+    });
+    
+    // Provide more specific error messages
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      throw new Error('Permission denied - insufficient access rights');
+    } else if (error.response?.status === 404) {
+      throw new Error('Search endpoint not found');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error - please try again later');
+    } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+      throw new Error('Network error - check your connection');
+    } else {
+      throw new Error(error.response?.data?.message || error.response?.data?.error || 'Failed to search events');
+    }
   }
 }
 
