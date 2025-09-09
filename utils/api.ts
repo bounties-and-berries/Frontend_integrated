@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-export const BASE_URL = 'http://192.168.170.75:300'; // AWS EC2 public IPV4
+export const BASE_URL = 'http://192.168.170.75:3000';//
 
 export async function loginApi(name: string, password: string, role: string) {
   try {
     const response = await axios.post(`${BASE_URL}/api/auth/login`, { name, password, role });
-    return response.data;
+    return response.data
   } catch (error: any) {
     throw new Error(error.response?.data?.message || 'Login failed');
   }
