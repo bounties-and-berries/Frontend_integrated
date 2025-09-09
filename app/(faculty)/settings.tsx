@@ -7,22 +7,23 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  Switch,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { Faculty } from '@/types';
 import AnimatedCard from '@/components/AnimatedCard';
-import { User, Lock, Bell, CircleHelp as HelpCircle, FileText, MessageSquare, Camera, Moon, Sun, LogOut, ChevronRight } from 'lucide-react-native';
+import { User, Lock, CircleHelp as HelpCircle, FileText, MessageSquare, Camera, LogOut, ChevronRight } from 'lucide-react-native';
+import TopMenuBar from '@/components/TopMenuBar';
 
 export default function FacultySettings() {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
   const faculty = user as Faculty;
-  
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -50,14 +51,43 @@ export default function FacultySettings() {
     Alert.alert('Raise Query', 'This feature will be available soon.');
   };
 
-  const handleUploadPhoto = () => {
-    Alert.alert('Upload Photo', 'This feature will be available soon.');
+  const handleUploadPhoto = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant permission to access your photo library.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setUploading(true);
+        
+        // In a real app, you would upload to your server here
+        // For now, we'll just show a success message
+        setTimeout(() => {
+          setUploading(false);
+          Alert.alert('Success', 'Profile photo updated successfully!');
+        }, 2000);
+      }
+    } catch (error) {
+      setUploading(false);
+      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+    }
   };
 
   const settingsOptions = [
     {
       id: 'profile',
-      title: 'Profile Photo',
+      title: uploading ? 'Uploading...' : 'Profile Photo',
       subtitle: 'Change your profile picture',
       icon: Camera,
       onPress: handleUploadPhoto,
@@ -94,15 +124,12 @@ export default function FacultySettings() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Settings
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Manage your account and preferences
-        </Text>
-      </View>
+      <TopMenuBar 
+        title="Settings"
+        subtitle="Manage your account and preferences"
+        showBackButton={true}
+        showNotifications={false}
+      />
 
       <ScrollView 
         style={styles.content}
@@ -127,65 +154,6 @@ export default function FacultySettings() {
                   {faculty?.department} • {faculty?.subject}
                 </Text>
               </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* Preferences Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Preferences
-          </Text>
-          
-          <AnimatedCard style={styles.settingCard}>
-            <View style={styles.settingContent}>
-              <View style={styles.settingInfo}>
-                <View style={[styles.settingIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View>
-                  <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-              />
-            </View>
-          </AnimatedCard>
-
-          <AnimatedCard style={styles.settingCard}>
-            <View style={styles.settingContent}>
-              <View style={styles.settingInfo}>
-                <View style={[styles.settingIcon, { backgroundColor: theme.colors.accent + '20' }]}>
-                  <Bell size={20} color={theme.colors.accent} />
-                </View>
-                <View>
-                  <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                    Push Notifications
-                  </Text>
-                  <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
-                    Receive notifications for updates
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
-                thumbColor={notificationsEnabled ? '#FFFFFF' : theme.colors.surface}
-              />
             </View>
           </AnimatedCard>
         </View>
@@ -243,20 +211,6 @@ export default function FacultySettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Bold',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
   },
   content: {
     flex: 1,

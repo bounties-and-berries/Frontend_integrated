@@ -12,6 +12,7 @@ import { mockUsers, mockTransactions } from '@/data/mockData';
 import { Student } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
+import TopMenuBar from '@/components/TopMenuBar';
 import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
@@ -32,6 +33,15 @@ export default function FacultyDashboard() {
     .filter(t => t.type === 'earned')
     .slice(0, 10);
 
+  // Calendar standard date formatting
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   const handleCreateEvent = () => {
     router.push('/(faculty)/events');
   };
@@ -42,15 +52,12 @@ export default function FacultyDashboard() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Analytics Dashboard
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Student performance insights
-        </Text>
-      </View>
+      <TopMenuBar 
+        title="Analytics Dashboard"
+        subtitle="Student performance insights"
+        showBackButton={true}
+        showNotifications={false}
+      />
 
       <ScrollView 
         style={styles.content}
@@ -212,7 +219,7 @@ export default function FacultyDashboard() {
                     <View style={styles.transactionMeta}>
                       <Calendar size={12} color={theme.colors.textSecondary} />
                       <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
-                        {new Date(transaction.date).toLocaleDateString()}
+                        {formatDate(transaction.date)}
                       </Text>
                       {transaction.category && (
                         <>
@@ -275,20 +282,6 @@ export default function FacultyDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Bold',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
   },
   content: {
     flex: 1,

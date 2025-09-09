@@ -54,6 +54,8 @@ export default function StudentProgress() {
       <TopMenuBar 
         title="Student Progress"
         subtitle="Monitor individual student performance"
+        showBackButton={true}
+        showNotifications={false}
       />
 
       {/* Search and Filters */}

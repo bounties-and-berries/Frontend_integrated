@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
-import { User, FileText, Calendar } from 'lucide-react-native';
+import { User, FileText, Calendar, TrendingUp } from 'lucide-react-native';
 
 export default function FacultyLayout() {
   const { theme } = useTheme();
@@ -54,6 +54,15 @@ export default function FacultyLayout() {
         }}
       />
       <Tabs.Screen
+        name="student-progress"
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ size, color }) => (
+            <TrendingUp size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="dashboard"
         options={{
           href: null, // Hide from tabs
@@ -67,12 +76,6 @@ export default function FacultyLayout() {
       />
       <Tabs.Screen
         name="settings"
-        options={{
-          href: null, // Hide from tabs
-        }}
-      />
-      <Tabs.Screen
-        name="feeds"
         options={{
           href: null, // Hide from tabs
         }}

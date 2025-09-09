@@ -215,14 +215,6 @@ export default function TopMenuBar({
       ];
     } else if (user?.role === 'faculty') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'View and create college announcements',
-          icon: Rss,
-          route: '/(faculty)/feeds',
-          color: theme.colors.primary,
-        },
         ...baseItems,
       ];
     } else if (user?.role === 'admin') {
@@ -290,15 +282,31 @@ export default function TopMenuBar({
           
           <View style={styles.headerActions}>
             {showNotifications && (
-              <Animated.View style={animatedButtonStyle}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
-                  onPress={handleNotificationPress}
-                  activeOpacity={0.7}
-                >
-                  <Bell size={20} color={theme.colors.text} />
-                </TouchableOpacity>
-              </Animated.View>
+              <>
+                <Animated.View style={animatedButtonStyle}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
+                    onPress={toggleTheme}
+                    activeOpacity={0.7}
+                  >
+                    {isDark ? (
+                      <Moon size={20} color={theme.colors.primary} />
+                    ) : (
+                      <Sun size={20} color={theme.colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+                
+                <Animated.View style={animatedButtonStyle}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
+                    onPress={handleNotificationPress}
+                    activeOpacity={0.7}
+                  >
+                    <Bell size={20} color={theme.colors.text} />
+                  </TouchableOpacity>
+                </Animated.View>
+              </>
             )}
             
             <Animated.View style={animatedButtonStyle}>
@@ -411,31 +419,6 @@ export default function TopMenuBar({
                 </TouchableOpacity>
               ))}
               
-              {/* Dark Mode Toggle */}
-              <View style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}>
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                  thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-                />
-              </View>
-              
               {/* Terms & Conditions */}
               <TouchableOpacity
                 style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}
@@ -485,14 +468,17 @@ export default function TopMenuBar({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 60,
+    paddingTop: 35,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
+    position: 'sticky',
+    top: 0,
+    zIndex: 1000,
   },
   content: {
     flexDirection: 'row',

@@ -17,7 +17,7 @@ import { mockAchievements, mockEvents } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Rss } from 'lucide-react-native';
+import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -34,11 +34,20 @@ export default function FacultyHome() {
   ).length;
   const upcomingEvents = mockEvents.slice(0, 3);
 
+  // Calendar standard date formatting
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopMenuBar 
-        title="Good Morning"
-        subtitle={`Welcome back, ${faculty?.name}`}
+        title="Welcome Back"
+        subtitle={`${faculty?.name}`}
       />
 
       <ScrollView 
@@ -53,7 +62,7 @@ export default function FacultyHome() {
                 <View>
                   <Text style={styles.overviewTitle}>Faculty Dashboard</Text>
                   <Text style={styles.overviewSubtitle}>
-                    {faculty?.department} • {faculty?.subject}
+                    {faculty?.department} {faculty?.subject}
                   </Text>
                 </View>
                 <View style={styles.overviewIcon}>
@@ -153,7 +162,7 @@ export default function FacultyHome() {
                       {achievement.description}
                     </Text>
                     <Text style={[styles.approvalDate, { color: theme.colors.textSecondary }]}>
-                      {new Date(achievement.date).toLocaleDateString()}
+                      {formatDate(achievement.date)}
                     </Text>
                   </View>
                   <View style={styles.approvalPoints}>
@@ -190,7 +199,7 @@ export default function FacultyHome() {
                       {event.title}
                     </Text>
                     <Text style={[styles.eventDate, { color: theme.colors.textSecondary }]}>
-                      {new Date(event.date).toLocaleDateString()}
+                      {formatDate(event.date)}
                     </Text>
                     <Text style={[styles.eventLocation, { color: theme.colors.textSecondary }]}>
                       {event.location}
@@ -219,7 +228,7 @@ export default function FacultyHome() {
               onPress={() => router.push('/(faculty)/approvals')}
             >
               <LinearGradient
-                colors={theme.colors.gradient.primary}
+                colors={theme.colors.gradient.primary as any}
                 style={styles.actionButtonGradient}
               >
                 <FileText size={24} color="#FFFFFF" />
@@ -232,7 +241,7 @@ export default function FacultyHome() {
               onPress={() => router.push('/(faculty)/dashboard')}
             >
               <LinearGradient
-                colors={theme.colors.gradient.secondary}
+                colors={theme.colors.gradient.secondary as any}
                 style={styles.actionButtonGradient}
               >
                 <BarChart3 size={24} color="#FFFFFF" />
@@ -244,27 +253,14 @@ export default function FacultyHome() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/feeds')}
-            >
-              <LinearGradient
-                colors={theme.colors.gradient.accent}
-                style={styles.actionButtonGradient}
-              >
-                <Rss size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Feeds</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/history')}
+              onPress={() => router.push('/(faculty)/student-progress')}
             >
               <LinearGradient
                 colors={['#10B981', '#059669']}
                 style={styles.actionButtonGradient}
               >
                 <TrendingUp size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Points History</Text>
+                <Text style={styles.actionButtonText}>Student Progress</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -282,8 +278,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
+    marginTop: 15,
     paddingHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 15,
   },
   overviewCard: {
     gap: 20,

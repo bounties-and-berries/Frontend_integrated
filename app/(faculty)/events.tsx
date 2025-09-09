@@ -8,17 +8,19 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Modal,
   Platform,
+  KeyboardAvoidingView,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { searchEvents, createEvent } from '@/utils/api';
+import { searchEvents, createEvent, updateEvent } from '@/utils/api';
 import { Bounty } from '@/types';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Plus, Search, Calendar, MapPin, Users, CreditCard as Edit, Trash2, Award } from 'lucide-react-native';
+import { Plus, Search, Calendar, MapPin, Users, CreditCard as Edit, Trash2, Award, Clock } from 'lucide-react-native';
 
-// DateInput component that handles web/mobile differences
+// Enhanced DateInput component with calendar icon
 const DateInput = ({ 
   value, 
   onChange, 
@@ -30,42 +32,394 @@ const DateInput = ({
   placeholder: string;
   theme: any;
 }) => {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date, setDate] = useState(value ? new Date(value) : new Date());
+
+  const handleDateChange = (selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      setDate(selectedDate);
+      onChange(formattedDate);
+    }
+  };
+
+  const displayDate = value ? new Date(value).toLocaleDateString('en-US') : '';
+
   if (Platform.OS === 'web') {
     return (
-      <input 
-        type="date" 
-        value={value} 
-        onChange={(e) => onChange(e.target.value)} 
-        className="date-input"
-        title={placeholder}
-        aria-label={placeholder}
-      />
+      <View style={[styles.dateInputContainer, { borderColor: theme.colors.border }]}>
+        <Calendar size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+        <input 
+          type="date" 
+          value={value} 
+          onChange={(e) => onChange(e.target.value)} 
+          className="date-input"
+          title={placeholder}
+          aria-label={placeholder}
+          style={{
+            flex: 1,
+            border: 'none',
+            outline: 'none',
+            backgroundColor: 'transparent',
+            color: theme.colors.text,
+            fontSize: '14px',
+            fontFamily: 'Inter-Regular'
+          }}
+        />
+      </View>
     );
   }
   
   return (
-    <TextInput 
-      placeholder={placeholder}
-      placeholderTextColor={theme.colors.textSecondary}
-      value={value} 
-      onChangeText={onChange} 
-      style={[styles.formInput, { 
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.border,
-        color: theme.colors.text
-      }]} 
-    />
+    <View>
+      <TouchableOpacity 
+        style={[styles.dateInputContainer, { 
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border 
+        }]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Calendar size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+        <Text style={[styles.dateInputText, { 
+          color: displayDate ? theme.colors.text : theme.colors.textSecondary 
+        }]}>
+          {displayDate || placeholder}
+        </Text>
+      </TouchableOpacity>
+      
+      {showDatePicker && (
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerBackdrop} />
+          <TouchableOpacity 
+            style={styles.datePickerModalTouch}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View
+              style={[styles.datePickerContainer, { backgroundColor: theme.colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[styles.datePickerTitle, { color: theme.colors.text }]}>Select Date</Text>
+              
+              <View style={styles.calendarContainer}>
+                <View style={styles.calendarHeader}>
+                  <TouchableOpacity 
+                    style={styles.calendarNavButton}
+                    onPress={() => {
+                      const newDate = new Date(date);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setDate(newDate);
+                    }}
+                  >
+                    <Text style={[styles.calendarNavText, { color: theme.colors.primary }]}>‹</Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={[styles.calendarHeaderText, { color: theme.colors.text }]}>
+                    {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.calendarNavButton}
+                    onPress={() => {
+                      const newDate = new Date(date);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setDate(newDate);
+                    }}
+                  >
+                    <Text style={[styles.calendarNavText, { color: theme.colors.primary }]}>›</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.calendarGrid}>
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <Text key={index} style={[styles.calendarDayHeader, { color: theme.colors.textSecondary }]}>
+                      {day}
+                    </Text>
+                  ))}
+                  
+                  {(() => {
+                    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+                    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - firstDay.getDay());
+                    
+                    const days = [];
+                    for (let i = 0; i < 42; i++) {
+                      const currentDate = new Date(startDate);
+                      currentDate.setDate(startDate.getDate() + i);
+                      const isCurrentMonth = currentDate.getMonth() === date.getMonth();
+                      const isSelected = value && new Date(value).toDateString() === currentDate.toDateString();
+                      
+                      days.push(
+                        <TouchableOpacity
+                          key={i}
+                          style={[
+                            styles.calendarDay,
+                            isSelected && { backgroundColor: theme.colors.primary },
+                            !isCurrentMonth && styles.calendarDayInactive
+                          ]}
+                          onPress={() => {
+                            if (isCurrentMonth) {
+                              setDate(currentDate);
+                              handleDateChange(currentDate);
+                            }
+                          }}
+                        >
+                          <Text style={[
+                            styles.calendarDayText,
+                            { color: isCurrentMonth ? theme.colors.text : theme.colors.textSecondary },
+                            isSelected && { color: '#FFFFFF' },
+                            !isCurrentMonth && { opacity: 0.3 }
+                          ]}>
+                            {currentDate.getDate()}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return days;
+                  })()}
+                </View>
+              </View>
+              
+              <View style={styles.datePickerButtons}>
+                <TouchableOpacity 
+                  style={[styles.datePickerButton, { backgroundColor: theme.colors.surface }]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={[styles.datePickerButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.datePickerButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => handleDateChange(date)}
+                >
+                  <Text style={[styles.datePickerButtonText, { color: '#FFFFFF' }]}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+};
+
+// Enhanced TimeInput component with clock icon and AM/PM selector
+const TimeInput = ({ 
+  value, 
+  onChange, 
+  placeholder, 
+  theme 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder: string;
+  theme: any;
+}) => {
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [hour, setHour] = useState('12');
+  const [minute, setMinute] = useState('00');
+  const [ampm, setAmpm] = useState('AM');
+
+  useEffect(() => {
+    if (value) {
+      const [h, m] = value.split(':');
+      const hour24 = parseInt(h);
+      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+      const period = hour24 >= 12 ? 'PM' : 'AM';
+      
+      setHour(hour12.toString().padStart(2, '0'));
+      setMinute(m);
+      setAmpm(period);
+    }
+  }, [value]);
+
+  const handleTimeChange = () => {
+    const hour24 = ampm === 'AM' 
+      ? (hour === '12' ? 0 : parseInt(hour))
+      : (hour === '12' ? 12 : parseInt(hour) + 12);
+    
+    const timeString = `${hour24.toString().padStart(2, '0')}:${minute}`;
+    onChange(timeString);
+    setShowTimePicker(false);
+  };
+
+  const displayTime = value ? (() => {
+    const [h, m] = value.split(':');
+    const hour24 = parseInt(h);
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${m} ${period}`;
+  })() : '';
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.timeInputContainer, { borderColor: theme.colors.border }]}>
+        <Clock size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+        <input 
+          type="time" 
+          value={value} 
+          onChange={(e) => onChange(e.target.value)} 
+          className="time-input"
+          title={placeholder}
+          aria-label={placeholder}
+          style={{
+            flex: 1,
+            border: 'none',
+            outline: 'none',
+            backgroundColor: 'transparent',
+            color: theme.colors.text,
+            fontSize: '14px',
+            fontFamily: 'Inter-Regular'
+          }}
+        />
+      </View>
+    );
+  }
+  
+  return (
+    <View>
+      <TouchableOpacity 
+        style={[styles.timeInputContainer, { 
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border 
+        }]}
+        onPress={() => setShowTimePicker(true)}
+      >
+        <Clock size={20} color={theme.colors.textSecondary} style={styles.inputIcon} />
+        <Text style={[styles.timeInputText, { 
+          color: displayTime ? theme.colors.text : theme.colors.textSecondary 
+        }]}>
+          {displayTime || placeholder}
+        </Text>
+      </TouchableOpacity>
+      
+      {showTimePicker && (
+        <View style={styles.timePickerOverlay}>
+          <View style={styles.timePickerBackdrop} />
+          <TouchableOpacity 
+            style={styles.timePickerModalTouch}
+            activeOpacity={1}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View
+              style={[styles.timePickerContainer, { backgroundColor: theme.colors.card }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[styles.timePickerTitle, { color: theme.colors.text }]}>Select Time</Text>
+              
+              <View style={styles.timePickerContent}>
+                <View style={styles.timePickerSection}>
+                  <Text style={[styles.timePickerLabel, { color: theme.colors.text }]}>Hour</Text>
+                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                    {Array.from({length: 12}, (_, i) => i + 1).map((h) => (
+                      <TouchableOpacity
+                        key={h}
+                        style={[styles.timePickerOption, {
+                          backgroundColor: hour === h.toString().padStart(2, '0') ? theme.colors.primary : 'transparent'
+                        }]}
+                        onPress={() => setHour(h.toString().padStart(2, '0'))}
+                      >
+                        <Text style={[styles.timePickerOptionText, {
+                          color: hour === h.toString().padStart(2, '0') ? '#FFFFFF' : theme.colors.text
+                        }]}>
+                          {h.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.timePickerSection}>
+                  <Text style={[styles.timePickerLabel, { color: theme.colors.text }]}>Minute</Text>
+                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                    {Array.from({length: 60}, (_, i) => i).filter(m => m % 5 === 0).map((m) => (
+                      <TouchableOpacity
+                        key={m}
+                        style={[styles.timePickerOption, {
+                          backgroundColor: minute === m.toString().padStart(2, '0') ? theme.colors.primary : 'transparent'
+                        }]}
+                        onPress={() => setMinute(m.toString().padStart(2, '0'))}
+                      >
+                        <Text style={[styles.timePickerOptionText, {
+                          color: minute === m.toString().padStart(2, '0') ? '#FFFFFF' : theme.colors.text
+                        }]}>
+                          {m.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.timePickerSection}>
+                  <Text style={[styles.timePickerLabel, { color: theme.colors.text }]}>Period</Text>
+                  <View style={styles.ampmContainer}>
+                    {['AM', 'PM'].map((period) => (
+                      <TouchableOpacity
+                        key={period}
+                        style={[styles.ampmButton, {
+                          backgroundColor: ampm === period ? theme.colors.primary : theme.colors.surface
+                        }]}
+                        onPress={() => setAmpm(period)}
+                      >
+                        <Text style={[styles.ampmButtonText, {
+                          color: ampm === period ? '#FFFFFF' : theme.colors.text
+                        }]}>
+                          {period}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.timePickerButtons}>
+                <TouchableOpacity 
+                  style={[styles.timePickerButton, { backgroundColor: theme.colors.surface }]}
+                  onPress={() => setShowTimePicker(false)}
+                >
+                  <Text style={[styles.timePickerButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.timePickerButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleTimeChange}
+                >
+                  <Text style={[styles.timePickerButtonText, { color: '#FFFFFF' }]}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 };
 
 export default function FacultyEvents() {
   const { theme } = useTheme();
+  const screenHeight = Dimensions.get('window').height;
+  const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [events, setEvents] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Bounty | null>(null);
   const [createForm, setCreateForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    deadlineDate: '',
+    venue: '',
+    points: '',
+    berries: '',
+    capacity: '',
+    type: 'event',
+    image: null as File | null,
+  });
+  const [editForm, setEditForm] = useState({
     title: '',
     description: '',
     date: '',
@@ -80,26 +434,25 @@ export default function FacultyEvents() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
 
-  // Add CSS styles for web date inputs
+  // Add CSS styles for web date and time inputs
   useEffect(() => {
     if (Platform.OS === 'web') {
       const style = document.createElement('style');
       style.textContent = `
-        .date-input {
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          padding: 10px 12px;
+        .date-input, .time-input {
+          border: none;
+          outline: none;
+          background: transparent;
           font-size: 14px;
           font-family: 'Inter-Regular', sans-serif;
           width: 100%;
-          background-color: #f8f9fa;
-          color: #333;
+          color: inherit;
         }
-        .date-input:focus {
+        .date-input:focus, .time-input:focus {
           outline: none;
-          border-color: #6366f1;
-          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
         }
       `;
       document.head.appendChild(style);
@@ -147,11 +500,34 @@ export default function FacultyEvents() {
     setShowCreateModal(true);
   };
 
-  const handleEditEvent = (eventId: string) => {
-    Alert.alert('Edit Event', `Edit event ${eventId} - Feature coming soon.`);
+  const handleEditEvent = (eventId: number) => {
+    const eventToEdit = events.find(event => event.id === eventId);
+    if (eventToEdit) {
+      setEditingEvent(eventToEdit);
+      
+      // Parse the scheduled_date to extract date and time
+      const scheduledDate = new Date(eventToEdit.scheduled_date);
+      const dateStr = scheduledDate.toISOString().split('T')[0];
+      const timeStr = scheduledDate.toTimeString().split(' ')[0].substring(0, 5);
+      
+      setEditForm({
+        title: eventToEdit.name,
+        description: eventToEdit.description,
+        date: dateStr,
+        time: timeStr,
+        deadlineDate: '',
+        venue: eventToEdit.venue,
+        points: eventToEdit.alloted_points.toString(),
+        berries: eventToEdit.alloted_berries.toString(),
+        capacity: eventToEdit.capacity.toString(),
+        type: eventToEdit.type,
+        image: null,
+      });
+      setShowEditModal(true);
+    }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteEvent = (eventId: number) => {
     Alert.alert(
       'Delete Event',
       'Are you sure you want to delete this event?',
@@ -169,7 +545,118 @@ export default function FacultyEvents() {
     );
   };
 
-  // --- Event Creation Form Handlers ---
+  // --- Event Edit Form Handlers ---
+  const handleEditFormChange = (name: string, value: any) => {
+    setEditForm({ ...editForm, [name]: value });
+  };
+
+  const handleEditFileChange = (e: any) => {
+    const file = Platform.OS === 'web' ? e.target.files[0] : e;
+    setEditForm({ ...editForm, image: file });
+  };
+
+  const validateEditForm = () => {
+    if (!editForm.title.trim()) {
+      setEditError('Event title is required');
+      return false;
+    }
+    if (!editForm.description.trim()) {
+      setEditError('Event description is required');
+      return false;
+    }
+    if (!editForm.date) {
+      setEditError('Event date is required');
+      return false;
+    }
+    if (!editForm.venue.trim()) {
+      setEditError('Event venue is required');
+      return false;
+    }
+    if (!editForm.points || parseInt(editForm.points) <= 0) {
+      setEditError('Valid points value is required');
+      return false;
+    }
+    if (!editForm.capacity || parseInt(editForm.capacity) <= 0) {
+      setEditError('Valid capacity value is required');
+      return false;
+    }
+    return true;
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingEvent) return;
+    
+    setEditError('');
+    
+    if (!validateEditForm()) {
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('title', editForm.title.trim());
+      formData.append('description', editForm.description.trim());
+      
+      // Combine date and time
+      const dateTime = editForm.time 
+        ? `${editForm.date}T${editForm.time}:00Z`
+        : `${editForm.date}T00:00:00Z`;
+      formData.append('date', dateTime);
+      
+      formData.append('venue', editForm.venue.trim());
+      formData.append('points', editForm.points);
+      formData.append('berries', editForm.berries || '0');
+      formData.append('capacity', editForm.capacity);
+      formData.append('type', editForm.type);
+      
+      if (editForm.image) formData.append('image', editForm.image);
+      
+      console.log('Updating event with data:', {
+        id: editingEvent.id,
+        title: editForm.title,
+        description: editForm.description,
+        date: dateTime,
+        venue: editForm.venue,
+        points: editForm.points,
+        berries: editForm.berries,
+        capacity: editForm.capacity,
+        type: editForm.type
+      });
+      
+      const result = await updateEvent(editingEvent.id.toString(), formData);
+      console.log('Update event result:', result);
+      
+      setShowEditModal(false);
+      setEditingEvent(null);
+      resetEditForm();
+      fetchEvents();
+      Alert.alert('Success', 'Event updated successfully!');
+    } catch (err: any) {
+      console.error('Update event error:', err);
+      setEditError(err.message || 'Failed to update event');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const resetEditForm = () => {
+    setEditForm({ 
+      title: '', 
+      description: '', 
+      date: '', 
+      time: '',
+      deadlineDate: '',
+      venue: '', 
+      points: '', 
+      berries: '',
+      capacity: '',
+      type: 'event',
+      image: null 
+    });
+    setEditError('');
+    setEditingEvent(null);
+  };
   const handleCreateFormChange = (name: string, value: any) => {
     setCreateForm({ ...createForm, [name]: value });
   };
@@ -310,19 +797,31 @@ export default function FacultyEvents() {
         </TouchableOpacity>
       </View>
 
-      {/* Create Event Modal */}
-      <Modal
-        visible={showCreateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create New Event</Text>
-            
-            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-              <View style={styles.formGroup}>
+      {/* Create Event Modal - Custom Overlay for Android Compatibility */}
+      {showCreateModal && (
+        <View style={[styles.customModalOverlay, { backgroundColor: theme.colors.background }]}>
+          <KeyboardAvoidingView 
+            style={[styles.customModalContainer, { paddingTop: Platform.OS === 'android' ? statusBarHeight + 40 : 40 }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <TouchableOpacity 
+              style={styles.customModalBackdrop}
+              activeOpacity={1}
+              onPress={() => {
+                setShowCreateModal(false);
+                resetForm();
+              }}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.customModalContentWrapper}>
+                <View style={[styles.customModalContent, { backgroundColor: theme.colors.card }]}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create New Event</Text>
+                  
+                  <ScrollView 
+                    style={styles.formContainer} 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                <View style={styles.formGroup}>
                 <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Title *</Text>
                 <TextInput 
                   placeholder="Enter event title"
@@ -366,16 +865,11 @@ export default function FacultyEvents() {
                 </View>
                 <View style={[styles.formGroup, { flex: 1 }]}>
                   <Text style={[styles.formLabel, { color: theme.colors.text }]}>Time (Optional)</Text>
-                  <TextInput 
-                    placeholder="HH:MM"
-                    placeholderTextColor={theme.colors.textSecondary}
+                  <TimeInput 
                     value={createForm.time} 
-                    onChangeText={v => handleCreateFormChange('time', v)} 
-                    style={[styles.formInput, { 
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text
-                    }]} 
+                    onChange={v => handleCreateFormChange('time', v)} 
+                    placeholder="Select time"
+                    theme={theme}
                   />
                 </View>
               </View>
@@ -515,31 +1009,275 @@ export default function FacultyEvents() {
                   <Text style={[styles.errorText, { color: theme.colors.error }]}>{createError}</Text>
                 </View>
               ) : null}
-            </ScrollView>
+                  </ScrollView>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                onPress={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }} 
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setShowCreateModal(false);
+                        resetForm();
+                      }} 
+                      style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                    >
+                      <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={handleCreateSubmit} 
+                      style={[styles.modalButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
+                      disabled={createLoading}
+                    >
+                      <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+                        {createLoading ? 'Creating...' : 'Create Event'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleCreateSubmit} 
-                style={[styles.modalButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
-                disabled={createLoading}
-              >
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
-                  {createLoading ? 'Creating...' : 'Create Event'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
         </View>
-      </Modal>
+      )}
+
+      {/* Edit Event Modal - Custom Overlay for Android Compatibility */}
+      {showEditModal && editingEvent && (
+        <View style={[styles.customModalOverlay, { backgroundColor: theme.colors.background }]}>
+          <KeyboardAvoidingView 
+            style={[styles.customModalContainer, { paddingTop: Platform.OS === 'android' ? statusBarHeight + 40 : 40 }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <TouchableOpacity 
+              style={styles.customModalBackdrop}
+              activeOpacity={1}
+              onPress={() => {
+                setShowEditModal(false);
+                resetEditForm();
+              }}
+            >
+              <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.customModalContentWrapper}>
+                <View style={[styles.customModalContent, { backgroundColor: theme.colors.card }]}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Event</Text>
+                  
+                  <ScrollView 
+                    style={styles.formContainer} 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Title *</Text>
+                      <TextInput 
+                        placeholder="Enter event title"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={editForm.title} 
+                        onChangeText={v => handleEditFormChange('title', v)} 
+                        style={[styles.formInput, { 
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text
+                        }]} 
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Description *</Text>
+                      <TextInput 
+                        placeholder="Enter event description"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={editForm.description} 
+                        onChangeText={v => handleEditFormChange('description', v)} 
+                        style={[styles.formInput, styles.textArea, { 
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text
+                        }]} 
+                        multiline 
+                        numberOfLines={3} 
+                      />
+                    </View>
+
+                    <View style={styles.formRow}>
+                      <View style={[styles.formGroup, { flex: 1 }]}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Date *</Text>
+                        <DateInput 
+                          value={editForm.date} 
+                          onChange={v => handleEditFormChange('date', v)} 
+                          placeholder="YYYY-MM-DD"
+                          theme={theme}
+                        />
+                      </View>
+                      <View style={[styles.formGroup, { flex: 1 }]}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Time (Optional)</Text>
+                        <TimeInput 
+                          value={editForm.time} 
+                          onChange={v => handleEditFormChange('time', v)} 
+                          placeholder="Select time"
+                          theme={theme}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Deadline Date (Optional)</Text>
+                      <DateInput 
+                        value={editForm.deadlineDate} 
+                        onChange={v => handleEditFormChange('deadlineDate', v)} 
+                        placeholder="YYYY-MM-DD"
+                        theme={theme}
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Venue *</Text>
+                      <TextInput 
+                        placeholder="Enter event venue"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={editForm.venue} 
+                        onChangeText={v => handleEditFormChange('venue', v)} 
+                        style={[styles.formInput, { 
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text
+                        }]} 
+                      />
+                    </View>
+
+                    <View style={styles.formRow}>
+                      <View style={[styles.formGroup, { flex: 1 }]}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Points Reward *</Text>
+                        <TextInput 
+                          placeholder="100"
+                          placeholderTextColor={theme.colors.textSecondary}
+                          value={editForm.points} 
+                          onChangeText={v => handleEditFormChange('points', v)} 
+                          style={[styles.formInput, { 
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text
+                          }]} 
+                          keyboardType="numeric" 
+                        />
+                      </View>
+                      <View style={[styles.formGroup, { flex: 1 }]}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Berries Reward (Optional)</Text>
+                        <TextInput 
+                          placeholder="50"
+                          placeholderTextColor={theme.colors.textSecondary}
+                          value={editForm.berries} 
+                          onChangeText={v => handleEditFormChange('berries', v)} 
+                          style={[styles.formInput, { 
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text
+                          }]} 
+                          keyboardType="numeric" 
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Capacity *</Text>
+                      <TextInput 
+                        placeholder="50"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={editForm.capacity} 
+                        onChangeText={v => handleEditFormChange('capacity', v)} 
+                        style={[styles.formInput, { 
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text
+                        }]} 
+                        keyboardType="numeric" 
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Type</Text>
+                      <View style={styles.typeButtons}>
+                        {['event', 'competition', 'workshop', 'seminar'].map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.typeButton,
+                              {
+                                backgroundColor: editForm.type === type 
+                                  ? theme.colors.primary 
+                                  : theme.colors.surface,
+                                borderColor: theme.colors.border,
+                              }
+                            ]}
+                            onPress={() => handleEditFormChange('type', type)}
+                          >
+                            <Text style={[
+                              styles.typeButtonText,
+                              { 
+                                color: editForm.type === type 
+                                  ? '#FFFFFF' 
+                                  : theme.colors.textSecondary 
+                              }
+                            ]}>
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    {Platform.OS === 'web' ? (
+                      <View style={styles.formGroup}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Image (Optional)</Text>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleEditFileChange} 
+                          style={styles.fileInput}
+                          title="Select event image"
+                          aria-label="Select event image"
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.formGroup}>
+                        <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Image (Optional)</Text>
+                        <TouchableOpacity 
+                          onPress={() => {/* Use image picker for mobile */}} 
+                          style={[styles.imagePickerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                        >
+                          <Text style={[styles.imagePickerText, { color: theme.colors.textSecondary }]}>Select Image</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {editError ? (
+                      <View style={styles.errorContainer}>
+                        <Text style={[styles.errorText, { color: theme.colors.error }]}>{editError}</Text>
+                      </View>
+                    ) : null}
+                  </ScrollView>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setShowEditModal(false);
+                        resetEditForm();
+                      }} 
+                      style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                    >
+                      <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={handleEditSubmit} 
+                      style={[styles.modalButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
+                      disabled={editLoading}
+                    >
+                      <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+                        {editLoading ? 'Updating...' : 'Update Event'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchSection}>
@@ -593,13 +1331,13 @@ export default function FacultyEvents() {
                       <View style={styles.eventActions}>
                         <TouchableOpacity
                           style={[styles.actionButton, { backgroundColor: theme.colors.secondary + '20' }]}
-                          onPress={() => handleEditEvent(event.id.toString())}
+                          onPress={() => handleEditEvent(event.id)}
                         >
                           <Edit size={16} color={theme.colors.secondary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.actionButton, { backgroundColor: theme.colors.error + '20' }]}
-                          onPress={() => handleDeleteEvent(event.id.toString())}
+                          onPress={() => handleDeleteEvent(event.id)}
                         >
                           <Trash2 size={16} color={theme.colors.error} />
                         </TouchableOpacity>
@@ -825,19 +1563,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: '#00000099',
+  // Custom Modal Styles for Android Compatibility
+  customModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  customModalContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: Platform.OS === 'android' ? 60 : 40,
+  },
+  customModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
+  customModalContentWrapper: {
+    width: '100%',
+    maxHeight: '85%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customModalContent: {
     padding: 24,
     borderRadius: 12,
-    width: 400,
-    maxWidth: '90%',
-    maxHeight: '90%',
+    width: '100%',
+    maxWidth: Platform.OS === 'android' ? 340 : 400,
+    maxHeight: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   modalTitle: {
     fontSize: 20,
@@ -846,7 +1621,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formContainer: {
-    maxHeight: 400,
+    maxHeight: Platform.OS === 'android' ? 320 : 380,
+    paddingBottom: 10,
+    marginBottom: 10,
   },
   formGroup: {
     marginBottom: 16,
@@ -920,6 +1697,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 20,
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
   },
   modalButton: {
     flex: 1,
@@ -931,6 +1709,256 @@ const styles = StyleSheet.create({
   cancelButton: {},
   submitButton: {},
   modalButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  // Date and Time Picker Styles
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  timeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  inputIcon: {
+    marginRight: 4,
+  },
+  dateInputText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    flex: 1,
+  },
+  timeInputText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    flex: 1,
+  },
+  // Date Picker Overlay Styles
+  datePickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+  },
+  datePickerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  datePickerModalTouch: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  // Time Picker Overlay Styles
+  timePickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+  },
+  timePickerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  timePickerModalTouch: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  datePickerContainer: {
+    padding: Platform.OS === 'android' ? 16 : 20,
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: Platform.OS === 'android' ? 320 : 350,
+    minHeight: Platform.OS === 'android' ? 380 : 420,
+    elevation: Platform.OS === 'android' ? 8 : 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: Platform.OS === 'android' ? 4 : 2 },
+    shadowOpacity: Platform.OS === 'android' ? 0.3 : 0.25,
+    shadowRadius: Platform.OS === 'android' ? 4.65 : 3.84,
+  },
+  datePickerTitle: {
+    fontSize: Platform.OS === 'android' ? 16 : 18,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginBottom: Platform.OS === 'android' ? 16 : 20,
+  },
+  datePickerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  datePickerButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  datePickerButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  // Calendar Styles
+  calendarContainer: {
+    marginBottom: 16,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  calendarNavButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  calendarNavText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  calendarHeaderText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  calendarDayHeader: {
+    width: '14.28%',
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    paddingVertical: 8,
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    marginVertical: 1,
+  },
+  calendarDayInactive: {
+    opacity: 0.3,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  // Time Picker Modal Styles
+  timePickerContainer: {
+    padding: Platform.OS === 'android' ? 16 : 20,
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: Platform.OS === 'android' ? 320 : 350,
+    maxHeight: Platform.OS === 'android' ? '80%' : '70%',
+    elevation: Platform.OS === 'android' ? 8 : 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: Platform.OS === 'android' ? 4 : 2 },
+    shadowOpacity: Platform.OS === 'android' ? 0.3 : 0.25,
+    shadowRadius: Platform.OS === 'android' ? 4.65 : 3.84,
+  },
+  timePickerTitle: {
+    fontSize: Platform.OS === 'android' ? 16 : 18,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginBottom: Platform.OS === 'android' ? 16 : 20,
+  },
+  timePickerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Platform.OS === 'android' ? 12 : 16,
+    marginBottom: Platform.OS === 'android' ? 16 : 20,
+  },
+  timePickerSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timePickerLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 8,
+  },
+  timePickerScroll: {
+    maxHeight: Platform.OS === 'android' ? 100 : 120,
+    width: '100%',
+  },
+  timePickerOption: {
+    paddingVertical: Platform.OS === 'android' ? 10 : 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginVertical: 2,
+    alignItems: 'center',
+    minHeight: Platform.OS === 'android' ? 36 : 32,
+  },
+  timePickerOptionText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+  },
+  ampmContainer: {
+    gap: 8,
+  },
+  ampmButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  ampmButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  timePickerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  timePickerButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  timePickerButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
   },

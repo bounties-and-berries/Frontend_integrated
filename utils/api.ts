@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-export const BASE_URL = 'http://23.21.26.208:3000'; // AWS EC2 public IPV4
+export const BASE_URL = 'http://192.168.170.75:3000'; // AWS EC2 public IPV4
 
 export async function loginApi(name: string, password: string, role: string) {
   try {
