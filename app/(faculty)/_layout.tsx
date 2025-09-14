@@ -25,6 +25,8 @@ export default function FacultyLayout() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="student-progress" />
       <Stack.Screen name="create-event" />
+      <Stack.Screen name="review-bounty" />
+      <Stack.Screen name="review-student-request" />
     </Stack>
   );
 }

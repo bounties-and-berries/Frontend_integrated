@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,11 +23,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { Faculty } from '@/types';
-import { mockAchievements, mockEvents } from '@/data/mockData';
+import { mockAchievements, mockEvents, mockUsers } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Bell, Menu, Sun, Moon } from 'lucide-react-native';
+import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Bell, Menu, Sun, Moon, Trophy, Star, Cherry, CheckCircle2, XCircle } from 'lucide-react-native';
+import { getAllEventsAdmin, listParticipations, getMyParticipations } from '@/utils/api';
 
 const { width, height } = Dimensions.get('window');
 const scale = width / 375; // Base scale for iPhone 11
@@ -54,18 +55,89 @@ export default function FacultyHome() {
   // Animated values for scroll handling
   const scrollY = useSharedValue(0);
 
-  const pendingApprovals = mockAchievements.filter(a => a.status === 'pending').length;
-  const approvedToday = mockAchievements.filter(a => 
-    a.status === 'approved' && 
-    new Date(a.date).toDateString() === new Date().toDateString()
-  ).length;
-  const upcomingEvents = mockEvents.slice(0, 3);
+  const [facultyStats, setFacultyStats] = useState({
+    totalBounties: 0,
+    pointsAllocated: 0,
+    berriesAllocated: 0
+  });
+  
+  // Update the approvalStats state to include rejected count
+  const [approvalStats, setApprovalStats] = useState({
+    pendingApprovals: 0,
+    totalApproved: 0,
+    totalRejected: 0
+  });
 
+  // Fetch faculty statistics
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        // Fetch all events created by faculty
+        const events = await getAllEventsAdmin();
+        
+        // Calculate faculty statistics
+        const totalBounties = events.length;
+        const pointsAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_points) || 0), 0);
+        const berriesAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_berries) || 0), 0);
+        
+        setFacultyStats({
+          totalBounties,
+          pointsAllocated,
+          berriesAllocated
+        });
+        
+        try {
+          // Fetch participations to calculate approval stats
+          const participations = await listParticipations();
+          
+          // Calculate approval statistics
+          const pendingApprovals = participations.filter((p: any) => p.status === 'pending').length;
+          const totalApproved = participations.filter((p: any) => p.status === 'approved').length;
+          const totalRejected = participations.filter((p: any) => p.status === 'rejected').length;
+          
+          setApprovalStats({
+            pendingApprovals,
+            totalApproved,
+            totalRejected
+          });
+        } catch (participationError) {
+          console.error('Failed to fetch participation data:', participationError);
+          // Fallback to mock data for approval stats
+          setApprovalStats({
+            pendingApprovals: mockAchievements.filter(a => a.status === 'pending').length,
+            totalApproved: mockAchievements.filter(a => a.status === 'approved').length,
+            totalRejected: mockAchievements.filter(a => a.status === 'rejected').length
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch faculty statistics:', error);
+        // Fallback to mock data
+        setFacultyStats({
+          totalBounties: 12,
+          pointsAllocated: 1250,
+          berriesAllocated: 240
+        });
+        
+        setApprovalStats({
+          pendingApprovals: mockAchievements.filter(a => a.status === 'pending').length,
+          totalApproved: mockAchievements.filter(a => a.status === 'approved').length,
+          totalRejected: mockAchievements.filter(a => a.status === 'rejected').length
+        });
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+  // Restore the scrollHandler
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
     },
   });
+  
+  // Restore upcomingEvents
+  const upcomingEvents = mockEvents.slice(0, 3);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
@@ -115,7 +187,7 @@ export default function FacultyHome() {
                 <View>
                   <Text style={styles.overviewTitle}>Faculty Dashboard</Text>
                   <Text style={styles.overviewSubtitle}>
-                    {faculty?.department} • {faculty?.subject}
+                    {faculty?.department} {faculty?.subject}
                   </Text>
                 </View>
                 <View style={styles.overviewIcon}>
@@ -124,32 +196,35 @@ export default function FacultyHome() {
               </View>
               <View style={styles.overviewStats}>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{pendingApprovals}</Text>
-                  <Text style={styles.overviewStatLabel}>Pending</Text>
+                  <Text style={styles.overviewStatValue}>{facultyStats.totalBounties}</Text>
+                  <Text style={styles.overviewStatLabel}>Total Bounties</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{approvedToday}</Text>
-                  <Text style={styles.overviewStatLabel}>Approved Today</Text>
+                  <Text style={styles.overviewStatValue}>{facultyStats.pointsAllocated}</Text>
+                  <Text style={styles.overviewStatLabel}>Points Allocated</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>156</Text>
-                  <Text style={styles.overviewStatLabel}>Total Students</Text>
+                  <Text style={styles.overviewStatValue}>{facultyStats.berriesAllocated}</Text>
+                  <Text style={styles.overviewStatLabel}>Berries Allocated</Text>
                 </View>
               </View>
             </View>
           </GradientCard>
         </View>
 
-        {/* Quick Stats */}
+        {/* Approval Summary Cards */}
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Approval Summary
+          </Text>
           <View style={styles.statsRow}>
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.warning + '20' }]}>
-                  <Clock size={24} color={theme.colors.warning} />
+                  <Clock size={20} color={theme.colors.warning} />
                 </View>
                 <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  {pendingApprovals}
+                  {approvalStats.pendingApprovals}
                 </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Pending Approvals
@@ -160,32 +235,34 @@ export default function FacultyHome() {
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                  <CheckCircle size={24} color={theme.colors.success} />
+                  <CheckCircle2 size={20} color={theme.colors.success} />
                 </View>
                 <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  {approvedToday}
+                  {approvalStats.totalApproved}
                 </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Approved Today
+                  Total Approved
                 </Text>
               </View>
             </AnimatedCard>
             
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
-                <View style={[styles.statIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  <Users size={24} color={theme.colors.primary} />
+                <View style={[styles.statIcon, { backgroundColor: theme.colors.error + '20' }]}>
+                  <XCircle size={20} color={theme.colors.error} />
                 </View>
                 <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  156
+                  {approvalStats.totalRejected}
                 </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Total Students
+                  Total Rejected
                 </Text>
               </View>
             </AnimatedCard>
           </View>
         </View>
+
+        {/* Quick Actions - Removed as per request */}
 
         {/* Pending Approvals */}
         <View style={styles.section}>
@@ -270,54 +347,6 @@ export default function FacultyHome() {
           </ScrollView>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Quick Actions
-          </Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/(tabs)/approvals')}
-            >
-              <LinearGradient
-                colors={theme.colors.gradient.primary}
-                style={styles.actionButtonGradient}
-              >
-                <FileText size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Review Points</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/dashboard')}
-            >
-              <LinearGradient
-                colors={theme.colors.gradient.secondary}
-                style={styles.actionButtonGradient}
-              >
-                <BarChart3 size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Dashboard</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/dashboard')}
-            >
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.actionButtonGradient}
-              >
-                <BarChart3 size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Analytics Dashboard</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Animated.ScrollView>
     </View>
   );

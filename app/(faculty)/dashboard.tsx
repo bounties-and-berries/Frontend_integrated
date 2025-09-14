@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
 import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { getAllEventsAdmin } from '@/utils/api';
+import { Trophy, Star, Cherry } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +26,11 @@ export default function FacultyDashboard() {
   const { theme } = useTheme();
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const [facultyStats, setFacultyStats] = useState({
+    totalBounties: 0,
+    pointsAllocated: 0,
+    berriesAllocated: 0
+  });
   
   const students = mockUsers.filter(user => user.role === 'student') as Student[];
   const totalPoints = students.reduce((sum, student) => sum + student.totalPoints, 0);
@@ -40,6 +47,37 @@ export default function FacultyDashboard() {
   const handleViewEvents = () => {
     router.push('/(faculty)/(tabs)/events');
   };
+
+  // Fetch faculty statistics
+  useEffect(() => {
+    const fetchFacultyStats = async () => {
+      try {
+        // Fetch all events created by faculty
+        const events = await getAllEventsAdmin();
+        
+        // Calculate statistics
+        const totalBounties = events.length;
+        const pointsAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_points) || 0), 0);
+        const berriesAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_berries) || 0), 0);
+        
+        setFacultyStats({
+          totalBounties,
+          pointsAllocated,
+          berriesAllocated
+        });
+      } catch (error) {
+        console.error('Failed to fetch faculty statistics:', error);
+        // Fallback to mock data
+        setFacultyStats({
+          totalBounties: 12,
+          pointsAllocated: 1250,
+          berriesAllocated: 240
+        });
+      }
+    };
+
+    fetchFacultyStats();
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
@@ -76,8 +114,58 @@ export default function FacultyDashboard() {
           </View>
         </View>
 
-        {/* Overview Cards */}
+        {/* Faculty Statistics Cards */}
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Faculty Metrics
+          </Text>
+          <View style={styles.statsGrid}>
+            <AnimatedCard style={styles.statCard}>
+              <View style={styles.statContent}>
+                <View style={[styles.statIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                  <Trophy size={20} color={theme.colors.primary} />
+                </View>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                  {facultyStats.totalBounties}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+                  Total Bounties
+                </Text>
+              </View>
+            </AnimatedCard>
+            
+            <AnimatedCard style={styles.statCard}>
+              <View style={styles.statContent}>
+                <View style={[styles.statIcon, { backgroundColor: theme.colors.accent + '20' }]}>
+                  <Star size={20} color={theme.colors.accent} />
+                </View>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                  {facultyStats.pointsAllocated.toLocaleString()}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+                  Points Allocated
+                </Text>
+              </View>
+            </AnimatedCard>
+            
+            <AnimatedCard style={styles.statCard}>
+              <View style={styles.statContent}>
+                <View style={[styles.statIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                  <Cherry size={20} color={theme.colors.success} />
+                </View>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                  {facultyStats.berriesAllocated}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+                  Berries Allocated
+                </Text>
+              </View>
+            </AnimatedCard>
+          </View>
+        </View>
+
+        {/* Overview Cards */}
+        {/* <View style={styles.section}>
           <GradientCard gradientColors={theme.colors.gradient.primary}>
             <View style={styles.overviewCard}>
               <View style={styles.overviewHeader}>
@@ -100,10 +188,10 @@ export default function FacultyDashboard() {
               </View>
             </View>
           </GradientCard>
-        </View>
+        </View> */}
 
         {/* Quick Stats */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.statsGrid}>
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
@@ -147,7 +235,7 @@ export default function FacultyDashboard() {
               </View>
             </AnimatedCard>
           </View>
-        </View>
+        </View> */}
 
         {/* Filter Section */}
         <View style={styles.section}>
