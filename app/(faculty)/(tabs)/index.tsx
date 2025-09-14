@@ -7,8 +7,18 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  PixelRatio,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
@@ -17,15 +27,32 @@ import { mockAchievements, mockEvents } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Rss } from 'lucide-react-native';
+import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Bell, Menu, Sun, Moon } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const scale = width / 375; // Base scale for iPhone 11
+
+// Responsive font scaling
+const normalize = (size: number) => {
+  const newSize = size * scale;
+  if (PixelRatio.get() >= 3 && newSize > 18) {
+    return newSize - 2; // Slightly smaller for very high DPI screens
+  }
+  if (PixelRatio.get() < 2 && newSize < 14) {
+    return newSize + 1; // Slightly larger for low DPI screens
+  }
+  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+};
 
 export default function FacultyHome() {
-  const { theme } = useTheme();
+  const { theme, toggleTheme, isDark } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
   const faculty = user as Faculty;
+  const insets = useSafeAreaInsets();
+
+  // Animated values for scroll handling
+  const scrollY = useSharedValue(0);
 
   const pendingApprovals = mockAchievements.filter(a => a.status === 'pending').length;
   const approvedToday = mockAchievements.filter(a => 
@@ -34,16 +61,51 @@ export default function FacultyHome() {
   ).length;
   const upcomingEvents = mockEvents.slice(0, 3);
 
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TopMenuBar 
-        title="Good Morning"
-        subtitle={`Welcome back, ${faculty?.name}`}
-      />
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
-      <ScrollView 
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
+      {/* Top Menu Bar with Theme Toggle */}
+      <TopMenuBar 
+        title="Welcome Back"
+        subtitle={`Welcome back, ${faculty?.name}`}
+        showNotifications={true}
+        showBackButton={false}
+      />
+      
+      {/* Theme Toggle Button - Positioned over the TopMenuBar */}
+      <View style={{
+        position: 'absolute',
+        top: insets.top + (Platform.OS === 'ios' ? 10 : 20), // Match TopMenuBar's paddingTop
+        right: 132, // Increased spacing to prevent overlap with notification bell
+        zIndex: 1001,
+      }}>
+        <TouchableOpacity
+          style={[styles.themeToggleButton, { backgroundColor: theme.colors.card }]}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+        >
+          {isDark ? (
+            <Sun size={20} color={theme.colors.text} />
+          ) : (
+            <Moon size={20} color={theme.colors.text} />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <Animated.ScrollView 
         style={styles.content}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: 20 } // Reduced padding since TopMenuBar handles spacing
+        ]}
         showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
         {/* Overview Card */}
         <View style={styles.section}>
@@ -131,7 +193,7 @@ export default function FacultyHome() {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Recent Approval Requests
             </Text>
-            <TouchableOpacity onPress={() => router.push('/(faculty)/approvals')}>
+            <TouchableOpacity onPress={() => router.push('/(faculty)/(tabs)/approvals')}>
               <Text style={[styles.seeAll, { color: theme.colors.primary }]}>
                 View All
               </Text>
@@ -139,7 +201,7 @@ export default function FacultyHome() {
           </View>
           
           <View style={styles.approvalsList}>
-            {mockAchievements.filter(a => a.status === 'pending').slice(0, 3).map((achievement) => (
+            {mockAchievements.filter(a => a.status === 'pending').slice(0, 3).map((achievement, index) => (
               <AnimatedCard key={achievement.id} style={styles.approvalCard}>
                 <View style={styles.approvalContent}>
                   <View style={[styles.approvalIcon, { backgroundColor: theme.colors.warning + '20' }]}>
@@ -173,7 +235,7 @@ export default function FacultyHome() {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Upcoming Events
             </Text>
-            <TouchableOpacity onPress={() => router.push('/(faculty)/events')}>
+            <TouchableOpacity onPress={() => router.push('/(faculty)/(tabs)/events')}>
               <Text style={[styles.seeAll, { color: theme.colors.primary }]}>
                 Manage
               </Text>
@@ -182,7 +244,7 @@ export default function FacultyHome() {
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.horizontalList}>
-              {upcomingEvents.map((event) => (
+              {upcomingEvents.map((event, index) => (
                 <AnimatedCard key={event.id} style={styles.eventCard}>
                   <Image source={{ uri: event.image }} style={styles.eventImage} />
                   <View style={styles.eventContent}>
@@ -216,7 +278,7 @@ export default function FacultyHome() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/approvals')}
+              onPress={() => router.push('/(faculty)/(tabs)/approvals')}
             >
               <LinearGradient
                 colors={theme.colors.gradient.primary}
@@ -244,32 +306,19 @@ export default function FacultyHome() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/feeds')}
-            >
-              <LinearGradient
-                colors={theme.colors.gradient.accent}
-                style={styles.actionButtonGradient}
-              >
-                <Rss size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Feeds</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(faculty)/history')}
+              onPress={() => router.push('/(faculty)/dashboard')}
             >
               <LinearGradient
                 colors={['#10B981', '#059669']}
                 style={styles.actionButtonGradient}
               >
-                <TrendingUp size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Points History</Text>
+                <BarChart3 size={24} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Analytics Dashboard</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -278,8 +327,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  themeToggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   section: {
     paddingHorizontal: 20,

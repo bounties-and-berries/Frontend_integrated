@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Pressable,
   Image,
   Dimensions,
   Alert,
-  Switch,
+  Platform,
+  ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { Student, Faculty, Admin } from '@/types';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
+  withSpring,
+  Easing,
+  runOnJS,
 } from 'react-native-reanimated';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Student, Faculty, Admin } from '@/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Menu, 
   X, 
@@ -30,12 +33,10 @@ import {
   LogOut,
   FileText,
   Bell,
-  Sun,
-  Moon,
   Coins,
-  Home,
   ArrowLeft,
-  Rss
+  ChevronLeft,
+  TrendingUp
 } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -55,83 +56,156 @@ export default function TopMenuBar({
   showBackButton = false,
   onBackPress
 }: TopMenuBarProps) {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Auto-detect if back button should be shown based on navigation source
+  const shouldShowBackButton = showBackButton || params.fromMenu === 'true';
+  
   const student = user as Student;
   const faculty = user as Faculty;
   const admin = user as Admin;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const insets = useSafeAreaInsets();
 
-  const scale = useSharedValue(1);
-  const translateX = useSharedValue(-width);
-  const opacity = useSharedValue(0);
+  // Animation values for menu slide
+  const menuTranslateX = useSharedValue(-width);
+  const overlayOpacity = useSharedValue(0);
 
-  const animatedButtonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  // Animation configurations
+  const slideAnimationConfig = {
+    duration: 250,
+    easing: Easing.out(Easing.cubic),
+  };
 
-  const animatedModalStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  const overlayAnimationConfig = {
+    duration: 200,
+    easing: Easing.inOut(Easing.ease),
+  };
 
-  const animatedBackdropStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  const handleMenuPress = () => {
-    scale.value = withSpring(0.95, { duration: 100 }, () => {
-      scale.value = withSpring(1);
-    });
-    
-    if (!isMenuOpen) {
-      setIsMenuOpen(true);
-      opacity.value = withTiming(1, { duration: 300 });
-      translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+  useEffect(() => {
+    if (isMenuOpen) {
+      setShowOverlay(true);
+      // Slide in from left
+      menuTranslateX.value = withTiming(0, slideAnimationConfig);
+      overlayOpacity.value = withTiming(0.5, overlayAnimationConfig);
     } else {
-      closeMenu();
+      // Slide out to left
+      menuTranslateX.value = withTiming(-width, slideAnimationConfig);
+      overlayOpacity.value = withTiming(0, {
+        ...overlayAnimationConfig,
+        // Hide overlay after animation completes
+      }, (finished) => {
+        if (finished) {
+          runOnJS(setShowOverlay)(false);
+        }
+      });
+    }
+  }, [isMenuOpen]);
+
+  // Animated styles for menu and overlay
+  const menuAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: menuTranslateX.value }],
+    };
+  });
+
+  const overlayAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: overlayOpacity.value,
+    };
+  });
+
+  // Simple menu toggle with smooth animations
+  const handleMenuPress = () => {
+    console.log('Menu button pressed, toggling menu state from:', isMenuOpen, 'to:', !isMenuOpen);
+    
+    setIsMenuOpen(!isMenuOpen);
+    
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      try {
+        const Haptics = require('expo-haptics');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch (error) {
+        console.log('Haptics not available:', error);
+      }
     }
   };
 
   const closeMenu = () => {
-    opacity.value = withTiming(0, { duration: 200 });
-    translateX.value = withTiming(-width, { duration: 200 });
-    setTimeout(() => setIsMenuOpen(false), 200);
+    console.log('Closing menu...');
+    setIsMenuOpen(false);
   };
 
   const handleMenuItemPress = (route: string) => {
+    // Add haptic feedback for menu item press
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     closeMenu();
-    setTimeout(() => router.push(route as any), 250);
+    // Add fromMenu parameter to indicate navigation from top menu
+    const routeWithParams = route.includes('?') 
+      ? `${route}&fromMenu=true` 
+      : `${route}?fromMenu=true`;
+    setTimeout(() => router.push(routeWithParams as any), 250);
   };
 
   const handleProfilePress = () => {
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     closeMenu();
     setTimeout(() => {
       if (user?.role === 'student') {
-        router.push('/(student)/profile' as any);
+        router.push('/(student)/profile?fromMenu=true' as any);
       } else if (user?.role === 'faculty') {
-        router.push('/(faculty)/settings' as any);
+        router.push('/(faculty)/settings?fromMenu=true' as any);
       } else if (user?.role === 'admin') {
-        router.push('/(admin)/settings' as any);
+        router.push('/(admin)/settings?fromMenu=true' as any);
       }
     }, 250);
   };
 
   const handleNotificationPress = () => {
+    // Add haptic feedback for better UX
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    const routeWithParams = (route: string) => {
+      return route.includes('?') ? `${route}&fromMenu=true` : `${route}?fromMenu=true`;
+    };
+    
     switch (user?.role) {
       case 'student':
-        router.push('/(student)/notifications' as any);
+        router.push(routeWithParams('/(student)/notifications') as any);
         break;
       case 'faculty':
-        router.push('/(faculty)/notifications' as any);
+        router.push(routeWithParams('/(faculty)/notifications') as any);
         break;
       case 'admin':
-        router.push('/(admin)/notifications' as any);
+        router.push(routeWithParams('/(admin)/notifications') as any);
         break;
     }
   };
 
   const handleBackPress = () => {
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     if (onBackPress) {
       onBackPress();
     } else {
@@ -140,6 +214,12 @@ export default function TopMenuBar({
   };
 
   const handleLogout = () => {
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -159,8 +239,14 @@ export default function TopMenuBar({
   };
 
   const handleTerms = () => {
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     closeMenu();
-    setTimeout(() => router.push('/terms' as any), 250);
+    setTimeout(() => router.push('/terms?fromMenu=true' as any), 250);
   };
 
   // Role-specific menu items
@@ -179,14 +265,6 @@ export default function TopMenuBar({
 
     if (user?.role === 'student') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'View college announcements and updates',
-          icon: Rss,
-          route: '/(student)/feeds',
-          color: theme.colors.primary,
-        },
         {
           id: 'history',
           title: 'History',
@@ -216,25 +294,17 @@ export default function TopMenuBar({
     } else if (user?.role === 'faculty') {
       return [
         {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'View and create college announcements',
-          icon: Rss,
-          route: '/(faculty)/feeds',
+          id: 'student-progress',
+          title: 'Student Progress',
+          subtitle: 'Monitor student performance and engagement',
+          icon: TrendingUp,
+          route: '/(faculty)/student-progress',
           color: theme.colors.primary,
         },
         ...baseItems,
       ];
     } else if (user?.role === 'admin') {
       return [
-        {
-          id: 'feeds',
-          title: 'Feeds',
-          subtitle: 'Manage college announcements and posts',
-          icon: Rss,
-          route: '/(admin)/feeds',
-          color: theme.colors.primary,
-        },
         {
           id: 'rules',
           title: 'Point Rules',
@@ -261,17 +331,30 @@ export default function TopMenuBar({
 
   return (
     <>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[
+        styles.container, 
+        { 
+          backgroundColor: theme.colors.background,
+          paddingTop: insets.top + (Platform.OS === 'ios' ? 10 : 20),
+        }
+      ]}>
         <View style={styles.content}>
           <View style={styles.titleSection}>
             <View style={styles.headerRow}>
-              {showBackButton && (
+              {shouldShowBackButton && (
                 <TouchableOpacity
                   style={[styles.backButton, { backgroundColor: theme.colors.card }]}
                   onPress={handleBackPress}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6}
+                  accessible={true}
+                  accessibilityLabel="Go back"
+                  accessibilityRole="button"
                 >
-                  <ArrowLeft size={20} color={theme.colors.text} />
+                  {Platform.OS === 'ios' ? (
+                    <ChevronLeft size={20} color={theme.colors.text} />
+                  ) : (
+                    <ArrowLeft size={20} color={theme.colors.text} />
+                  )}
                 </TouchableOpacity>
               )}
               <Text style={[styles.appName, { color: theme.colors.primary }]}>
@@ -289,98 +372,136 @@ export default function TopMenuBar({
           </View>
           
           <View style={styles.headerActions}>
-            {showNotifications && (
-              <Animated.View style={animatedButtonStyle}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
-                  onPress={handleNotificationPress}
-                  activeOpacity={0.7}
-                >
-                  <Bell size={20} color={theme.colors.text} />
-                </TouchableOpacity>
-              </Animated.View>
+            {showNotifications && !shouldShowBackButton && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
+                onPress={handleNotificationPress}
+                activeOpacity={0.6}
+                accessible={true}
+                accessibilityLabel="Notifications"
+                accessibilityRole="button"
+              >
+                <Bell size={20} color={theme.colors.text} />
+              </TouchableOpacity>
             )}
             
-            <Animated.View style={animatedButtonStyle}>
+            {!shouldShowBackButton && (
               <TouchableOpacity
                 style={[styles.menuButton, { backgroundColor: theme.colors.card }]}
                 onPress={handleMenuPress}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
+                accessible={true}
+                accessibilityLabel="Menu"
+                accessibilityRole="button"
               >
                 <Menu size={24} color={theme.colors.text} />
               </TouchableOpacity>
-            </Animated.View>
+            )}
           </View>
         </View>
       </View>
 
-      <Modal
-        visible={isMenuOpen}
-        transparent
-        animationType="none"
-        onRequestClose={closeMenu}
-      >
-        <View style={styles.modalContainer}>
-          <Animated.View 
-            style={[styles.backdrop, animatedBackdropStyle]}
+      {/* Animated Menu Overlay with smooth slide transitions */}
+      {showOverlay && (
+        <>
+          {/* Animated Backdrop with fade */}
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                zIndex: 9999,
+                pointerEvents: showOverlay ? 'auto' : 'none',
+              },
+              overlayAnimatedStyle,
+            ]}
           >
-            <Pressable 
-              style={styles.backdropPressable}
+            <Pressable
+              style={{ flex: 1 }}
               onPress={closeMenu}
             />
           </Animated.View>
           
-          <Animated.View 
+          {/* Animated Menu Container */}
+          <Animated.View
             style={[
-              styles.menuContainer, 
-              { backgroundColor: theme.colors.background },
-              animatedModalStyle
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: Platform.OS === 'web' ? Math.min(400, width * 0.9) : width * 0.85,
+                height: height,
+                backgroundColor: theme.colors.background,
+                zIndex: 10000,
+                elevation: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 4, height: 0 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+              },
+              menuAnimatedStyle,
             ]}
           >
-            {/* Menu Header with Close Button */}
-            <View style={[styles.menuHeader, { borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.menuTitle, { color: theme.colors.text }]}>
+            {/* Menu Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
+                paddingTop: insets.top + 20,
+                paddingBottom: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: theme.colors.text }}>
                 Menu
               </Text>
               <TouchableOpacity
-                style={[styles.closeButton, { backgroundColor: theme.colors.card }]}
                 onPress={closeMenu}
-                activeOpacity={0.7}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: theme.colors.card,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
               >
                 <X size={20} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
-            {/* User Info Header - Clickable */}
-            <TouchableOpacity 
-              style={[styles.userHeader, { borderBottomColor: theme.colors.border }]}
+            {/* User Info Header */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.colors.border,
+              }}
               onPress={handleProfilePress}
-              activeOpacity={0.7}
             >
               <Image
                 source={{ uri: user?.profileImage }}
-                style={styles.userImage}
+                style={{ width: 50, height: 50, borderRadius: 25, marginRight: 12 }}
               />
-              <View style={styles.userInfo}>
-                <Text style={[styles.userName, { color: theme.colors.text }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontFamily: 'Poppins-SemiBold', color: theme.colors.text }}>
                   {user?.name}
                 </Text>
-                <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]}>
+                <Text style={{ fontSize: 14, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary, marginTop: 2 }}>
                   {user?.email}
                 </Text>
-                {user?.role === 'student' && (
-                  <Text style={[styles.userPoints, { color: theme.colors.primary }]}>
-                    {student?.totalPoints} berries
-                  </Text>
-                )}
                 {user?.role === 'faculty' && (
-                  <Text style={[styles.userDepartment, { color: theme.colors.textSecondary }]}>
-                    {faculty?.department}
-                  </Text>
-                )}
-                {user?.role === 'admin' && (
-                  <Text style={[styles.userCollege, { color: theme.colors.textSecondary }]}>
-                    {admin?.collegeName}
+                  <Text style={{ fontSize: 14, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary, marginTop: 2 }}>
+                    {(user as Faculty)?.department}
                   </Text>
                 )}
               </View>
@@ -388,22 +509,39 @@ export default function TopMenuBar({
             </TouchableOpacity>
 
             {/* Menu Items */}
-            <View style={styles.menuItems}>
+            <ScrollView style={{ flex: 1, paddingVertical: 8 }}>
               {menuItems.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 20,
+                    paddingVertical: 16,
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: theme.colors.border,
+                    minHeight: 64,
+                  }}
                   onPress={() => handleMenuItemPress(item.route)}
-                  activeOpacity={0.7}
                 >
-                  <View style={[styles.menuIcon, { backgroundColor: item.color + '20' }]}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: item.color + '20',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}
+                  >
                     <item.icon size={20} color={item.color} />
                   </View>
-                  <View style={styles.menuItemContent}>
-                    <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontFamily: 'Inter-SemiBold', color: theme.colors.text }}>
                       {item.title}
                     </Text>
-                    <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary, marginTop: 2 }}>
                       {item.subtitle}
                     </Text>
                   </View>
@@ -411,45 +549,37 @@ export default function TopMenuBar({
                 </TouchableOpacity>
               ))}
               
-              {/* Dark Mode Toggle */}
-              <View style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}>
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                  thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-                />
-              </View>
-              
               {/* Terms & Conditions */}
               <TouchableOpacity
-                style={[styles.menuItem, { borderBottomColor: theme.colors.border }]}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 16,
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: theme.colors.border,
+                  minHeight: 64,
+                }}
                 onPress={handleTerms}
-                activeOpacity={0.7}
               >
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: theme.colors.primary + '20',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12,
+                  }}
+                >
                   <FileText size={20} color={theme.colors.primary} />
                 </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontFamily: 'Inter-SemiBold', color: theme.colors.text }}>
                     Terms & Conditions
                   </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary, marginTop: 2 }}>
                     Read our terms and conditions
                   </Text>
                 </View>
@@ -458,34 +588,48 @@ export default function TopMenuBar({
               
               {/* Logout */}
               <TouchableOpacity
-                style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 16,
+                  minHeight: 64,
+                }}
                 onPress={handleLogout}
-                activeOpacity={0.7}
               >
-                <View style={[styles.menuIcon, { backgroundColor: theme.colors.error + '20' }]}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: theme.colors.error + '20',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12,
+                  }}
+                >
                   <LogOut size={20} color={theme.colors.error} />
                 </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemTitle, { color: theme.colors.error }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontFamily: 'Inter-SemiBold', color: theme.colors.error }}>
                     Logout
                   </Text>
-                  <Text style={[styles.menuItemSubtitle, { color: theme.colors.textSecondary }]}>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary, marginTop: 2 }}>
                     Sign out of your account
                   </Text>
                 </View>
                 <ChevronRight size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </Animated.View>
-        </View>
-      </Modal>
+        </>
+      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
     shadowColor: '#000',
@@ -509,9 +653,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -538,9 +682,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -560,126 +704,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
-  },
-  modalContainer: {
-    flex: 1,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  backdropPressable: {
-    flex: 1,
-  },
-  menuContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: width,
-    height: height,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  menuHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-  },
-  menuTitle: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  userImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  userEmail: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  userPoints: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    marginTop: 4,
-  },
-  userDepartment: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  userCollege: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  menuItems: {
-    flex: 1,
-    paddingVertical: 8,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 0.5,
-  },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  menuItemContent: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  menuItemSubtitle: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
   },
 });

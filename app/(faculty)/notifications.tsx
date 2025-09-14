@@ -5,10 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  ViewStyle,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { mockNotifications } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
+import TopMenuBar from '@/components/TopMenuBar';
 import { Bell, CircleCheck as CheckCircle, Info, TriangleAlert as AlertTriangle, Circle as XCircle, Clock } from 'lucide-react-native';
 
 const getNotificationIcon = (type: string) => {
@@ -62,26 +64,24 @@ export default function FacultyNotifications() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            Notifications
-          </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            {unreadCount} unread notifications
-          </Text>
-        </View>
-        {unreadCount > 0 && (
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
+      <TopMenuBar 
+        title="Notifications"
+        subtitle={`${unreadCount} unread notifications`}
+        showBackButton={true}
+      />
+
+      {/* Mark All Button - moved to content area */}
+      {unreadCount > 0 && (
+        <View style={styles.markAllContainer}>
           <TouchableOpacity
             style={[styles.markAllButton, { backgroundColor: theme.colors.primary }]}
             onPress={markAllAsRead}
           >
             <Text style={styles.markAllButtonText}>Mark All Read</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Notifications List */}
       <ScrollView 
@@ -93,10 +93,10 @@ export default function FacultyNotifications() {
             <AnimatedCard style={styles.emptyCard}>
               <View style={styles.emptyContent}>
                 <Bell size={48} color={theme.colors.textSecondary} />
-                <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+                <Text style={[styles.emptyTitle, { color: theme.colors.text, marginTop: 16 }]}>
                   No Notifications
                 </Text>
-                <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary, marginTop: 8 }]}>
                   You're all caught up! Check back later for updates.
                 </Text>
               </View>
@@ -106,21 +106,20 @@ export default function FacultyNotifications() {
               const IconComponent = getNotificationIcon(notification.type);
               const iconColor = getNotificationColor(notification.type, theme);
               
+              const dynamicCardStyle: ViewStyle = {
+                backgroundColor: notification.read 
+                  ? theme.colors.card 
+                  : theme.colors.primary + '05',
+                borderColor: notification.read
+                  ? theme.colors.border
+                  : theme.colors.primary + '20',
+                borderWidth: notification.read ? 0 : 1,
+              };
+              
               return (
                 <AnimatedCard 
                   key={notification.id} 
-                  style={[
-                    styles.notificationCard,
-                    { 
-                      backgroundColor: notification.read 
-                        ? theme.colors.card 
-                        : theme.colors.primary + '05',
-                      borderColor: notification.read
-                        ? theme.colors.border
-                        : theme.colors.primary + '20',
-                      borderWidth: notification.read ? 0 : 1,
-                    }
-                  ]}
+                  style={StyleSheet.flatten([styles.notificationCard, dynamicCardStyle])}
                   onPress={() => markAsRead(notification.id)}
                 >
                   <View style={styles.notificationContent}>
@@ -149,14 +148,14 @@ export default function FacultyNotifications() {
                       
                       <Text style={[
                         styles.notificationMessage, 
-                        { color: theme.colors.textSecondary }
+                        { color: theme.colors.textSecondary, marginTop: 6, marginBottom: 4 }
                       ]} numberOfLines={3}>
                         {notification.message}
                       </Text>
                       
                       <View style={styles.notificationMeta}>
                         <Clock size={12} color={theme.colors.textSecondary} />
-                        <Text style={[styles.notificationDate, { color: theme.colors.textSecondary }]}>
+                        <Text style={[styles.notificationDate, { color: theme.colors.textSecondary, marginLeft: 6 }]}>
                           {new Date(notification.date).toLocaleDateString()}
                         </Text>
                       </View>
@@ -175,6 +174,11 @@ export default function FacultyNotifications() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  markAllContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    alignItems: 'flex-end',
   },
   header: {
     paddingTop: 60,
@@ -209,7 +213,6 @@ const styles = StyleSheet.create({
   notificationsContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    gap: 12,
   },
   emptyCard: {
     alignItems: 'center',
@@ -217,7 +220,7 @@ const styles = StyleSheet.create({
   },
   emptyContent: {
     alignItems: 'center',
-    gap: 16,
+    marginVertical: 8,
   },
   emptyTitle: {
     fontSize: 20,
@@ -229,12 +232,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   notificationCard: {
-    marginBottom: 0,
+    marginBottom: 12,
   },
   notificationContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    paddingHorizontal: 6,
   },
   notificationIcon: {
     width: 40,
@@ -245,7 +248,8 @@ const styles = StyleSheet.create({
   },
   notificationInfo: {
     flex: 1,
-    gap: 6,
+    marginLeft: 12,
+    paddingVertical: 3,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -270,8 +274,7 @@ const styles = StyleSheet.create({
   notificationMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    marginTop: 10,
   },
   notificationDate: {
     fontSize: 12,

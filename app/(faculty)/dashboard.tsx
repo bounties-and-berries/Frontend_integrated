@@ -12,6 +12,7 @@ import { mockUsers, mockTransactions } from '@/data/mockData';
 import { Student } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
+import TopMenuBar from '@/components/TopMenuBar';
 import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
@@ -33,24 +34,20 @@ export default function FacultyDashboard() {
     .slice(0, 10);
 
   const handleCreateEvent = () => {
-    router.push('/(faculty)/events');
+    router.push('/(faculty)/(tabs)/events');
   };
 
   const handleViewEvents = () => {
-    router.push('/(faculty)/events');
+    router.push('/(faculty)/(tabs)/events');
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Analytics Dashboard
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Student performance insights
-        </Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
+      <TopMenuBar 
+        title="Analytics Dashboard"
+        subtitle="Student performance insights"
+        showBackButton={true}
+      />
 
       <ScrollView 
         style={styles.content}

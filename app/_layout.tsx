@@ -49,7 +49,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ 
+          headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: 350,
+          animationTypeForReplace: 'push',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+        }}>
           <Stack.Screen name="login" />
           <Stack.Screen name="(student)" />
           <Stack.Screen name="(faculty)" />

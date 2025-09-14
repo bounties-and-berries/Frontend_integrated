@@ -111,11 +111,7 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={
-        (theme.colors.gradient.primary.length >= 2
-          ? theme.colors.gradient.primary
-          : ['#000', '#fff']) as [string, string, ...string[]]
-      }
+      colors={theme.colors.gradient.primary}
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -238,11 +234,7 @@ export default function LoginScreen() {
                 disabled={isLoading}
               >
                 <LinearGradient
-                  colors={
-                    (theme.colors.gradient.primary.length >= 2
-                      ? theme.colors.gradient.primary
-                      : ['#000', '#fff']) as [string, string, ...string[]]
-                  }
+                  colors={theme.colors.gradient.primary}
                   style={styles.loginButtonGradient}
                 >
                   {isLoading ? (

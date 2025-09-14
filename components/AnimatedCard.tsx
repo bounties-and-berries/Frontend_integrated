@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TouchableOpacity, ViewStyle, Text } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import Animated, {
@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withDelay,
 } from 'react-native-reanimated';
 
 interface AnimatedCardProps {
@@ -13,34 +14,69 @@ interface AnimatedCardProps {
   style?: ViewStyle;
   onPress?: () => void;
   disabled?: boolean;
+  delay?: number; // Added delay prop for staggered animations
+  skipEntranceAnimation?: boolean; // Added prop to skip entrance animation
 }
 
 export default function AnimatedCard({ 
   children, 
   style, 
   onPress, 
-  disabled = false 
+  disabled = false,
+  delay = 0,
+  skipEntranceAnimation = false
 }: AnimatedCardProps) {
   const { theme } = useTheme();
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
+  const scale = useSharedValue(skipEntranceAnimation ? 1 : 0.95);
+  const opacity = useSharedValue(skipEntranceAnimation ? 1 : 0.3);
+  const pressScale = useSharedValue(1);
+  const pressOpacity = useSharedValue(1);
+
+  // Entrance animation
+  useEffect(() => {
+    if (!skipEntranceAnimation) {
+      const startAnimation = () => {
+        scale.value = withSpring(1, {
+          damping: 20,
+          stiffness: 300,
+          mass: 0.8,
+        });
+        opacity.value = withTiming(1, {
+          duration: 400,
+        });
+      };
+
+      if (delay > 0) {
+        const timer = setTimeout(startAnimation, delay);
+        return () => clearTimeout(timer);
+      } else {
+        startAnimation();
+      }
+    }
+  }, [delay, skipEntranceAnimation, scale, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
+    transform: [{ scale: scale.value * pressScale.value }],
+    opacity: opacity.value * pressOpacity.value,
+  }), []);
 
   const handlePressIn = () => {
     if (!disabled) {
-      scale.value = withSpring(0.95);
-      opacity.value = withTiming(0.8, { duration: 150 });
+      pressScale.value = withSpring(0.95, {
+        damping: 15,
+        stiffness: 400,
+      });
+      pressOpacity.value = withTiming(0.8, { duration: 150 });
     }
   };
 
   const handlePressOut = () => {
     if (!disabled) {
-      scale.value = withSpring(1);
-      opacity.value = withTiming(1, { duration: 150 });
+      pressScale.value = withSpring(1, {
+        damping: 15,
+        stiffness: 400,
+      });
+      pressOpacity.value = withTiming(1, { duration: 150 });
     }
   };
 

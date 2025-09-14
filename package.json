@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "expo start",
     "build:web": "expo export --platform web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
@@ -14,6 +16,7 @@
     "@expo/vector-icons": "^14.1.0",
     "@lucide/lab": "^0.1.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "8.4.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "axios": "^1.11.0",
@@ -51,6 +54,7 @@
     "@babel/core": "^7.25.2",
     "@types/qrcode": "^1.5.5",
     "@types/react": "~19.0.10",
+    "expo-module-scripts": "^5.0.7",
     "typescript": "~5.8.3"
   }
 }

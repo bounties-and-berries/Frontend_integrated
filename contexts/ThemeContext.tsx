@@ -15,9 +15,9 @@ export interface Theme {
     warning: string;
     error: string;
     gradient: {
-      primary: string[];
-      secondary: string[];
-      accent: string[];
+      primary: readonly [string, string, ...string[]];
+      secondary: readonly [string, string, ...string[]];
+      accent: readonly [string, string, ...string[]];
     };
   };
   dark: boolean;

@@ -10,56 +10,25 @@ import {
   Alert,
   Modal,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRouter } from 'expo-router';
 import { searchEvents, createEvent } from '@/utils/api';
 import { Bounty } from '@/types';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Plus, Search, Calendar, MapPin, Users, CreditCard as Edit, Trash2, Award } from 'lucide-react-native';
+import NativeDatePicker from '@/components/NativeDatePicker';
+import DocumentPicker from '@/components/DocumentPicker';
+import { Plus, Search, Calendar, MapPin, Users, CreditCard as Edit, Trash2, Award, X } from 'lucide-react-native';
 
-// DateInput component that handles web/mobile differences
-const DateInput = ({ 
-  value, 
-  onChange, 
-  placeholder, 
-  theme 
-}: { 
-  value: string; 
-  onChange: (value: string) => void; 
-  placeholder: string;
-  theme: any;
-}) => {
-  if (Platform.OS === 'web') {
-    return (
-      <input 
-        type="date" 
-        value={value} 
-        onChange={(e) => onChange(e.target.value)} 
-        className="date-input"
-        title={placeholder}
-        aria-label={placeholder}
-      />
-    );
-  }
-  
-  return (
-    <TextInput 
-      placeholder={placeholder}
-      placeholderTextColor={theme.colors.textSecondary}
-      value={value} 
-      onChangeText={onChange} 
-      style={[styles.formInput, { 
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.border,
-        color: theme.colors.text
-      }]} 
-    />
-  );
-};
+// Remove the old DateInput component - now using NativeDatePicker
 
 export default function FacultyEvents() {
   const { theme } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [events, setEvents] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,9 +37,9 @@ export default function FacultyEvents() {
   const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
-    date: '',
-    time: '',
-    deadlineDate: '',
+    date: null as Date | null,
+    time: null as Date | null,
+    deadlineDate: null as Date | null,
     venue: '',
     points: '',
     berries: '',
@@ -80,6 +49,11 @@ export default function FacultyEvents() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Form change handler
+  const handleCreateFormChange = (key: string, value: string | Date | null) => {
+    setCreateForm(prev => ({ ...prev, [key]: value }));
+  };
 
   // Add CSS styles for web date inputs
   useEffect(() => {
@@ -144,7 +118,7 @@ export default function FacultyEvents() {
   const filteredEvents = events;
 
   const handleCreateEvent = () => {
-    setShowCreateModal(true);
+    router.push('/(faculty)/create-event');
   };
 
   const handleEditEvent = (eventId: string) => {
@@ -161,7 +135,7 @@ export default function FacultyEvents() {
           text: 'Delete', 
           style: 'destructive',
           onPress: () => {
-            setEvents(prev => prev.filter(event => event.id !== eventId));
+            setEvents(prev => prev.filter(event => event.id.toString() !== eventId));
             Alert.alert('Success', 'Event deleted successfully!');
           }
         }
@@ -170,10 +144,6 @@ export default function FacultyEvents() {
   };
 
   // --- Event Creation Form Handlers ---
-  const handleCreateFormChange = (name: string, value: any) => {
-    setCreateForm({ ...createForm, [name]: value });
-  };
-
   const handleCreateFileChange = (e: any) => {
     const file = Platform.OS === 'web' ? e.target.files[0] : e;
     setCreateForm({ ...createForm, image: file });
@@ -214,6 +184,12 @@ export default function FacultyEvents() {
       return;
     }
 
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      const Haptics = require('expo-haptics');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
     setCreateLoading(true);
     try {
       const formData = new FormData();
@@ -221,9 +197,17 @@ export default function FacultyEvents() {
       formData.append('description', createForm.description.trim());
       
       // Combine date and time
-      const dateTime = createForm.time 
-        ? `${createForm.date}T${createForm.time}:00Z`
-        : `${createForm.date}T00:00:00Z`;
+      let dateTime: string;
+      if (createForm.time && createForm.date) {
+        // Combine date and time
+        const combinedDate = new Date(createForm.date);
+        combinedDate.setHours(createForm.time.getHours(), createForm.time.getMinutes());
+        dateTime = combinedDate.toISOString();
+      } else if (createForm.date) {
+        dateTime = createForm.date.toISOString();
+      } else {
+        dateTime = new Date().toISOString();
+      }
       formData.append('date', dateTime);
       
       formData.append('venue', createForm.venue.trim());
@@ -252,9 +236,9 @@ export default function FacultyEvents() {
       setCreateForm({ 
         title: '', 
         description: '', 
-        date: '', 
-        time: '',
-        deadlineDate: '',
+        date: null, 
+        time: null,
+        deadlineDate: null,
         venue: '', 
         points: '', 
         berries: '',
@@ -273,18 +257,18 @@ export default function FacultyEvents() {
   };
 
   const resetForm = () => {
-    setCreateForm({ 
-      title: '', 
-      description: '', 
-      date: '', 
-      time: '',
-      deadlineDate: '',
-      venue: '', 
-      points: '', 
+    setCreateForm({
+      title: '',
+      description: '',
+      date: null,
+      time: null,
+      deadlineDate: null,
+      venue: '',
+      points: '',
       berries: '',
       capacity: '',
       type: 'event',
-      image: null 
+      image: null,
     });
     setCreateError('');
   };
@@ -292,7 +276,7 @@ export default function FacultyEvents() {
 
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}> 
       {/* Top Menu Bar */}
       <TopMenuBar 
         title="Event Management"
@@ -314,137 +298,145 @@ export default function FacultyEvents() {
       <Modal
         visible={showCreateModal}
         animationType="slide"
-        transparent={true}
+        transparent={false}
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowCreateModal(false)}
+        statusBarTranslucent={false}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+        <KeyboardAvoidingView 
+          style={{ flex: 1, width: '100%', height: '100%' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.modalHeader, { 
+            backgroundColor: theme.colors.card,
+            borderBottomColor: theme.colors.border,
+            paddingTop: insets.top + 20, // Use safe area insets properly
+          }]}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowCreateModal(false);
+                resetForm();
+              }}
+              style={[styles.modalCloseButton, { backgroundColor: theme.colors.surface }]}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Close modal"
+              accessibilityHint="Tap to close the create event form"
+            >
+              <X size={20} color={theme.colors.text} />
+            </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create New Event</Text>
+            <View style={{ width: 40 }} />
+          </View>
             
-            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Title *</Text>
-                <TextInput 
-                  placeholder="Enter event title"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={createForm.title} 
-                  onChangeText={v => handleCreateFormChange('title', v)} 
-                  style={[styles.formInput, { 
+          <ScrollView 
+            style={styles.formContainer} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 100 }}
+          >
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Title *</Text>
+              <TextInput 
+                placeholder="Enter event title"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createForm.title} 
+                onChangeText={v => handleCreateFormChange('title', v)} 
+                style={[styles.formInput, { 
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text
+                }]} 
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Description *</Text>
+              <TextInput 
+                placeholder="Enter event description"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createForm.description} 
+                onChangeText={v => handleCreateFormChange('description', v)} 
+                style={[styles.formInput, styles.textArea, { 
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text
+                }]} 
+                multiline 
+                numberOfLines={3} 
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Date *</Text>
+                <NativeDatePicker
+                  value={createForm.date || undefined}
+                  onChange={(date) => handleCreateFormChange('date', date)}
+                  placeholder="Select event date"
+                  mode="date"
+                  minimumDate={new Date()}
+                  style={{
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
-                    color: theme.colors.text
-                  }]} 
+                  }}
                 />
               </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Description *</Text>
-                <TextInput 
-                  placeholder="Enter event description"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={createForm.description} 
-                  onChangeText={v => handleCreateFormChange('description', v)} 
-                  style={[styles.formInput, styles.textArea, { 
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Time (Optional)</Text>
+                <NativeDatePicker
+                  value={createForm.time || undefined}
+                  onChange={(time) => handleCreateFormChange('time', time)}
+                  placeholder="Select time"
+                  mode="time"
+                  style={{
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
-                    color: theme.colors.text
-                  }]} 
-                  multiline 
-                  numberOfLines={3} 
+                  }}
                 />
               </View>
+            </View>
 
-              <View style={styles.formRow}>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Date *</Text>
-                  <DateInput 
-                    value={createForm.date} 
-                    onChange={v => handleCreateFormChange('date', v)} 
-                    placeholder="YYYY-MM-DD"
-                    theme={theme}
-                  />
-                </View>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Time (Optional)</Text>
-                  <TextInput 
-                    placeholder="HH:MM"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={createForm.time} 
-                    onChangeText={v => handleCreateFormChange('time', v)} 
-                    style={[styles.formInput, { 
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text
-                    }]} 
-                  />
-                </View>
-              </View>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Deadline Date (Optional)</Text>
+              <NativeDatePicker
+                value={createForm.deadlineDate || undefined}
+                onChange={(date) => handleCreateFormChange('deadlineDate', date)}
+                placeholder="Select deadline date"
+                mode="date"
+                minimumDate={new Date()}
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }}
+              />
+            </View>
 
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Deadline Date (Optional)</Text>
-                <DateInput 
-                  value={createForm.deadlineDate} 
-                  onChange={v => handleCreateFormChange('deadlineDate', v)} 
-                  placeholder="YYYY-MM-DD"
-                  theme={theme}
-                />
-              </View>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Venue *</Text>
+              <TextInput 
+                placeholder="Enter event venue"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createForm.venue} 
+                onChangeText={v => handleCreateFormChange('venue', v)} 
+                style={[styles.formInput, { 
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text
+                }]} 
+              />
+            </View>
 
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Venue *</Text>
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Points Reward *</Text>
                 <TextInput 
-                  placeholder="Enter event venue"
+                  placeholder="100"
                   placeholderTextColor={theme.colors.textSecondary}
-                  value={createForm.venue} 
-                  onChangeText={v => handleCreateFormChange('venue', v)} 
-                  style={[styles.formInput, { 
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text
-                  }]} 
-                />
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Points Reward *</Text>
-                  <TextInput 
-                    placeholder="100"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={createForm.points} 
-                    onChangeText={v => handleCreateFormChange('points', v)} 
-                    style={[styles.formInput, { 
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text
-                    }]} 
-                    keyboardType="numeric" 
-                  />
-                </View>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Berries Reward (Optional)</Text>
-                  <TextInput 
-                    placeholder="50"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={createForm.berries} 
-                    onChangeText={v => handleCreateFormChange('berries', v)} 
-                    style={[styles.formInput, { 
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text
-                    }]} 
-                    keyboardType="numeric" 
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Capacity *</Text>
-                <TextInput 
-                  placeholder="50"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={createForm.capacity} 
-                  onChangeText={v => handleCreateFormChange('capacity', v)} 
+                  value={createForm.points} 
+                  onChangeText={v => handleCreateFormChange('points', v)} 
                   style={[styles.formInput, { 
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
@@ -453,92 +445,133 @@ export default function FacultyEvents() {
                   keyboardType="numeric" 
                 />
               </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Type</Text>
-                <View style={styles.typeButtons}>
-                  {['event', 'competition', 'workshop', 'seminar'].map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.typeButton,
-                        {
-                          backgroundColor: createForm.type === type 
-                            ? theme.colors.primary 
-                            : theme.colors.surface,
-                          borderColor: theme.colors.border,
-                        }
-                      ]}
-                      onPress={() => handleCreateFormChange('type', type)}
-                    >
-                      <Text style={[
-                        styles.typeButtonText,
-                        { 
-                          color: createForm.type === type 
-                            ? '#FFFFFF' 
-                            : theme.colors.textSecondary 
-                        }
-                      ]}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Berries Reward (Optional)</Text>
+                <TextInput 
+                  placeholder="50"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  value={createForm.berries} 
+                  onChangeText={v => handleCreateFormChange('berries', v)} 
+                  style={[styles.formInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]} 
+                  keyboardType="numeric" 
+                />
               </View>
-
-              {Platform.OS === 'web' ? (
-                <View style={styles.formGroup}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Image (Optional)</Text>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleCreateFileChange} 
-                    style={styles.fileInput}
-                    title="Select event image"
-                    aria-label="Select event image"
-                  />
-                </View>
-              ) : (
-                <View style={styles.formGroup}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Image (Optional)</Text>
-                  <TouchableOpacity 
-                    onPress={() => {/* Use image picker for mobile */}} 
-                    style={[styles.imagePickerButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  >
-                    <Text style={[styles.imagePickerText, { color: theme.colors.textSecondary }]}>Select Image</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {createError ? (
-                <View style={styles.errorContainer}>
-                  <Text style={[styles.errorText, { color: theme.colors.error }]}>{createError}</Text>
-                </View>
-              ) : null}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                onPress={() => {
-                  setShowCreateModal(false);
-                  resetForm();
-                }} 
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleCreateSubmit} 
-                style={[styles.modalButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
-                disabled={createLoading}
-              >
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
-                  {createLoading ? 'Creating...' : 'Create Event'}
-                </Text>
-              </TouchableOpacity>
             </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Capacity *</Text>
+              <TextInput 
+                placeholder="50"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={createForm.capacity} 
+                onChangeText={v => handleCreateFormChange('capacity', v)} 
+                style={[styles.formInput, { 
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text
+                }]} 
+                keyboardType="numeric" 
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Type</Text>
+              <View style={styles.typeButtons}>
+                {['event', 'competition', 'workshop', 'seminar'].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.typeButton,
+                      {
+                        backgroundColor: createForm.type === type 
+                          ? theme.colors.primary 
+                          : theme.colors.surface,
+                        borderColor: theme.colors.border,
+                      }
+                    ]}
+                    onPress={() => handleCreateFormChange('type', type)}
+                  >
+                    <Text style={[
+                      styles.typeButtonText,
+                      { 
+                        color: createForm.type === type 
+                          ? '#FFFFFF' 
+                          : theme.colors.textSecondary 
+                      }
+                    ]}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Image (Optional)</Text>
+              <DocumentPicker
+                onFileSelected={(file) => handleCreateFormChange('image', file)}
+                acceptedTypes={['png', 'jpg', 'jpeg', 'gif']}
+                maxSizeBytes={5 * 1024 * 1024} // 5MB
+                placeholder="Select event image"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }}
+              />
+            </View>
+
+            {createError ? (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: theme.colors.error }]}>{createError}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          <View style={[styles.modalActions, { 
+            backgroundColor: theme.colors.card,
+            borderTopColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, 16)
+          }]}>
+            <TouchableOpacity 
+              onPress={() => {
+                // Add haptic feedback
+                if (Platform.OS !== 'web') {
+                  const Haptics = require('expo-haptics');
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                setShowCreateModal(false);
+                resetForm();
+              }} 
+              style={[styles.modalButton, styles.cancelButton, { 
+                backgroundColor: theme.colors.surface, 
+                borderColor: theme.colors.border 
+              }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={handleCreateSubmit} 
+              style={[styles.modalButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
+              disabled={createLoading}
+              activeOpacity={0.8}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={createLoading ? 'Creating event' : 'Create event'}
+              accessibilityHint="Tap to create the new event"
+              accessibilityState={{ disabled: createLoading }}
+            >
+              <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+                {createLoading ? 'Creating...' : 'Create Event'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Search Bar */}
@@ -574,7 +607,7 @@ export default function FacultyEvents() {
               <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>No events found.</Text>
             </View>
           ) : (
-            filteredEvents.map((event: Bounty) => (
+            filteredEvents.map((event: Bounty, index: number) => (
               <AnimatedCard key={event.id} style={styles.eventCard}>
                 <View style={styles.eventContent}>
                   {event.img_url && (
@@ -826,6 +859,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
   },
   // Modal Styles
+  modalContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: '#00000099',
@@ -846,7 +904,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formContainer: {
-    maxHeight: 400,
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
   formGroup: {
     marginBottom: 16,
@@ -864,9 +924,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+    minHeight: 44, // Ensure touch target compliance
   },
 
   textArea: {
@@ -919,7 +980,10 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    backgroundColor: 'transparent',
   },
   modalButton: {
     flex: 1,

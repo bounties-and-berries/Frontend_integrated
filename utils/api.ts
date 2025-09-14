@@ -1,13 +1,55 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { Platform } from 'react-native';
 
-export const BASE_URL = 'http://23.21.26.208:3000'; // AWS EC2 public IPV4
+// Platform-aware base URL configuration
+const getBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    return 'http://127.0.0.1:3000';
+  } else {
+    // For Android/iOS, use your computer's IP address on the local network
+    // Replace this with your actual IP address (run `ipconfig` on Windows or `ifconfig` on Mac/Linux)
+    return 'http://192.168.170.75:3000'; // Replace with your actual IP
+  }
+};
+
+export const BASE_URL = getBaseUrl();
+
+// Configure axios defaults for better mobile compatibility
+axios.defaults.timeout = 10000; // 10 second timeout
+axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.post['Content-Type'] = 'application/json';
+
+// Network connectivity test function
+export async function testNetworkConnectivity() {
+  try {
+    console.log('Testing network connectivity to:', BASE_URL);
+    const response = await axios.get(`${BASE_URL}/api/health`, { timeout: 5000 });
+    console.log('Network test successful:', response.data);
+    return true;
+  } catch (error: any) {
+    console.error('Network test failed:', {
+      message: error.message,
+      code: error.code,
+      baseUrl: BASE_URL
+    });
+    return false;
+  }
+}
 
 export async function loginApi(name: string, password: string, role: string) {
+  console.log('Login attempt:', { name, role, baseUrl: BASE_URL });
   try {
     const response = await axios.post(`${BASE_URL}/api/auth/login`, { name, password, role });
+    console.log('Login successful:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('Login error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      baseUrl: BASE_URL
+    });
     throw new Error(error.response?.data?.message || 'Login failed');
   }
 }
@@ -226,9 +268,12 @@ export async function updateProfileImage(file: File | Blob) {
  */
 export async function getUserAvailableBerries() {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${BASE_URL}/api/users/available-berries`, { headers });
-  if (!response.ok) throw new Error('Failed to fetch available berries');
-  return response.json();
+  try {
+    const response = await axios.get(`${BASE_URL}/api/users/available-berries`, { headers });
+    return response.data;
+  } catch (error: any) {
+    throw new Error('Failed to fetch available berries');
+  }
 }
 
 // Participation APIs

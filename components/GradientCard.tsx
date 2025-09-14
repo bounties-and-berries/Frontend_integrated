@@ -5,7 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 interface GradientCardProps {
   children: React.ReactNode;
-  gradientColors?: string[];
+  gradientColors?: readonly [string, string, ...string[]];
   style?: ViewStyle;
   innerStyle?: ViewStyle;
 }

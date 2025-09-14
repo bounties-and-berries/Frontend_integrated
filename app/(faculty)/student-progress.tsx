@@ -50,10 +50,11 @@ export default function StudentProgress() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
       <TopMenuBar 
         title="Student Progress"
         subtitle="Monitor individual student performance"
+        showBackButton={true}
       />
 
       {/* Search and Filters */}

@@ -7,17 +7,23 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { mockAchievements } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
+import TopMenuBar from '@/components/TopMenuBar';
 import { CircleCheck as CheckCircle, Circle as XCircle, Clock, FileText, Calendar } from 'lucide-react-native';
 
 const filterOptions = ['All', 'Pending', 'Approved', 'Rejected'];
 
 export default function FacultyApprovals() {
   const { theme } = useTheme();
+  const params = useLocalSearchParams();
   const [selectedFilter, setSelectedFilter] = useState('Pending');
   const [achievements, setAchievements] = useState(mockAchievements);
+  
+  // Only show back button when navigating from top menu
+  const shouldShowBackButton = params.fromMenu === 'true';
   
   const filteredAchievements = achievements.filter(achievement => {
     if (selectedFilter === 'All') return true;
@@ -94,16 +100,12 @@ export default function FacultyApprovals() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Point Approvals
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Review and approve student achievements
-        </Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
+      <TopMenuBar 
+        title="Point Approvals"
+        subtitle="Review and approve student achievements"
+        showBackButton={shouldShowBackButton}
+      />
 
       {/* Filter Section */}
       <View style={styles.filterSection}>
@@ -250,6 +252,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   filterSection: {
+    paddingTop: 15,
     paddingHorizontal: 20,
     marginBottom: 20,
   },
