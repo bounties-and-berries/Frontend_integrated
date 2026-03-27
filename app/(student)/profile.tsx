@@ -1,19 +1,19 @@
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
   Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { Student } from '@/types';
-import { mockBadges, mockAchievements } from '@/data/mockData';
+import { Student, Achievement, Badge } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import {
@@ -26,6 +26,7 @@ import {
   Settings,
   User
 } from 'lucide-react-native';
+import { getStudentAchievements, getUserStats } from '@/utils/api';
 
 const { width } = Dimensions.get('window');
 
@@ -35,13 +36,34 @@ export default function StudentProfile() {
   const router = useRouter();
   const student = user as Student;
 
-  const approvedAchievements = mockAchievements.filter(a => a.status === 'approved');
-  const recentBadges = mockBadges.slice(0, 6);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [stats, setStats] = useState<{ points: any; berries: any; achievements: any } | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const load = async () => {
+      try {
+        const [achRes, statsRes] = await Promise.all([
+          getStudentAchievements(user.id),
+          getUserStats(),
+        ]);
+        setAchievements(achRes?.data || achRes?.achievements || []);
+        setStats(statsRes?.data || null);
+      } catch (err) {
+        console.error('Profile data load failed:', err);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    load();
+  }, [user?.id]);
+
+  const approvedAchievements = achievements.filter((a: Achievement) => a.status === 'approved');
 
   const handlePublicView = () => {
     router.push('/public');
   };
-
 
   return (
     <ScrollView
@@ -88,8 +110,8 @@ export default function StudentProfile() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{recentBadges.length}</Text>
-                <Text style={styles.statLabel}>Badges</Text>
+                <Text style={styles.statValue}>{stats?.berries?.current ?? '—'}</Text>
+                <Text style={styles.statLabel}>Berries</Text>
               </View>
             </View>
           </View>
@@ -101,111 +123,75 @@ export default function StudentProfile() {
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Progress Analytics
         </Text>
-
         <View style={styles.analyticsGrid}>
           <AnimatedCard style={styles.analyticsCard}>
             <View style={styles.analyticsContent}>
               <View style={styles.analyticsHeader}>
                 <TrendingUp size={20} color={theme.colors.success} />
                 <Text style={[styles.analyticsValue, { color: theme.colors.text }]}>
-                  +15%
+                  {stats?.points?.total_earned ?? '—'}
                 </Text>
               </View>
               <Text style={[styles.analyticsLabel, { color: theme.colors.textSecondary }]}>
-                This Month
+                Total Points Earned
               </Text>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '75%', backgroundColor: theme.colors.success }]} />
-              </View>
             </View>
           </AnimatedCard>
-
           <AnimatedCard style={styles.analyticsCard}>
             <View style={styles.analyticsContent}>
               <View style={styles.analyticsHeader}>
                 <Trophy size={20} color={theme.colors.accent} />
                 <Text style={[styles.analyticsValue, { color: theme.colors.text }]}>
-                  #12
+                  {stats?.achievements?.bounties_completed ?? '—'}
                 </Text>
               </View>
               <Text style={[styles.analyticsLabel, { color: theme.colors.textSecondary }]}>
-                Class Rank
+                Bounties Completed
               </Text>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '60%', backgroundColor: theme.colors.accent }]} />
-              </View>
             </View>
           </AnimatedCard>
         </View>
       </View>
 
-      {/* Recent Badges */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+      {/* Recent Achievements */}
+      {loadingData ? (
+        <View style={styles.section}>
+          <ActivityIndicator color={theme.colors.primary} />
+        </View>
+      ) : approvedAchievements.length > 0 ? (
+        <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Recent Badges
+            Recent Achievements
           </Text>
-          <Text style={[styles.badgeCount, { color: theme.colors.textSecondary }]}>
-            {recentBadges.length} earned
-          </Text>
+          <View style={styles.achievementsList}>
+            {approvedAchievements.slice(0, 3).map((achievement: Achievement) => (
+              <AnimatedCard key={achievement.id} style={styles.achievementCard}>
+                <View style={styles.achievementContent}>
+                  <View style={[styles.achievementIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                    <Star size={20} color={theme.colors.success} />
+                  </View>
+                  <View style={styles.achievementInfo}>
+                    <Text style={[styles.achievementTitle, { color: theme.colors.text }]}>
+                      {achievement.title}
+                    </Text>
+                    <Text style={[styles.achievementDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                      {achievement.description}
+                    </Text>
+                    <Text style={[styles.achievementDate, { color: theme.colors.textSecondary }]}>
+                      {new Date(achievement.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.achievementPoints}>
+                    <Text style={[styles.achievementPointsText, { color: theme.colors.primary }]}>
+                      +{achievement.points}
+                    </Text>
+                  </View>
+                </View>
+              </AnimatedCard>
+            ))}
+          </View>
         </View>
-
-        <View style={styles.badgesGrid}>
-          {recentBadges.map((badge) => (
-            <AnimatedCard key={badge.id} style={styles.badgeCard}>
-              <View style={styles.badgeContent}>
-                <View style={[styles.badgeIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  <Award size={24} color={theme.colors.primary} />
-                </View>
-                <Text style={[styles.badgeName, { color: theme.colors.text }]} numberOfLines={1}>
-                  {badge.name}
-                </Text>
-                <Text style={[styles.badgeDate, { color: theme.colors.textSecondary }]}>
-                  {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'N/A'}
-                </Text>
-              </View>
-            </AnimatedCard>
-          ))}
-        </View>
-      </View>
-
-      {/* Achievements Dashboard */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Recent Achievements
-        </Text>
-
-        <View style={styles.achievementsList}>
-          {approvedAchievements.slice(0, 3).map((achievement) => (
-            <AnimatedCard key={achievement.id} style={styles.achievementCard}>
-              <View style={styles.achievementContent}>
-                <View style={[
-                  styles.achievementIcon,
-                  { backgroundColor: theme.colors.success + '20' }
-                ]}>
-                  <Star size={20} color={theme.colors.success} />
-                </View>
-                <View style={styles.achievementInfo}>
-                  <Text style={[styles.achievementTitle, { color: theme.colors.text }]}>
-                    {achievement.title}
-                  </Text>
-                  <Text style={[styles.achievementDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                    {achievement.description}
-                  </Text>
-                  <Text style={[styles.achievementDate, { color: theme.colors.textSecondary }]}>
-                    {new Date(achievement.date).toLocaleDateString()}
-                  </Text>
-                </View>
-                <View style={styles.achievementPoints}>
-                  <Text style={[styles.achievementPointsText, { color: theme.colors.primary }]}>
-                    +{achievement.points}
-                  </Text>
-                </View>
-              </View>
-            </AnimatedCard>
-          ))}
-        </View>
-      </View>
+      ) : null}
 
       {/* Public Dashboard Button */}
       <View style={styles.section}>
