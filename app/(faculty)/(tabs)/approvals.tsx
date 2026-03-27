@@ -13,14 +13,14 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { mockAchievements, mockEvents } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { CircleCheck as CheckCircle, Circle as XCircle, Clock, FileText, Calendar, Users, MapPin, Star, Cherry, Eye } from 'lucide-react-native';
+import { CheckCircle, Circle as XCircle, Clock, FileText, Calendar, Users, MapPin, Star, Cherry, Eye } from 'lucide-react-native';
 import { getAllEventsAdmin } from '@/utils/api';
 
 const { width } = Dimensions.get('window');
 
 const filterOptions = ['All', 'Pending', 'Approved', 'Rejected'];
 
-interface Bounty {
+interface Event {
   id: number;
   name: string;
   description: string;
@@ -52,8 +52,8 @@ export default function FacultyApprovals() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState('Pending');
-  const [activeSection, setActiveSection] = useState('bounties'); // 'bounties' or 'requests'
-  const [bounties, setBounties] = useState<Bounty[]>([]);
+  const [activeSection, setActiveSection] = useState('events'); // 'events' or 'requests'
+  const [events, setEvents] = useState<Event[]>([]);
   const [studentRequests, setStudentRequests] = useState<StudentRequest[]>(mockAchievements.map(achievement => ({
     id: achievement.id,
     studentName: 'Alice Johnson',
@@ -64,96 +64,96 @@ export default function FacultyApprovals() {
     berries: 0,
     date: achievement.date,
     proofUrl: achievement.proofUrl,
-    status: achievement.status
+    status: (achievement.status || 'pending') as 'pending' | 'approved' | 'rejected'
   })));
-  
+
   // Only show back button when navigating from top menu
   const shouldShowBackButton = params.fromMenu === 'true';
-  
-  // Fetch bounties data
+
+  // Fetch events data
   useEffect(() => {
-    const fetchBounties = async () => {
+    const fetchEvents = async () => {
       try {
         const events = await getAllEventsAdmin();
-        // Convert events to bounties format with status
-        const bountiesWithStatus = events.map((event: any) => ({
+        // Convert events to events format with status
+        const eventsWithStatus = events.map((event: any) => ({
           ...event,
           status: 'pending' // Default status, in real app this would come from API
         }));
-        setBounties(bountiesWithStatus);
+        setEvents(eventsWithStatus);
       } catch (error) {
-        console.error('Failed to fetch bounties:', error);
+        console.error('Failed to fetch events:', error);
         // Fallback to mock data
-        setBounties(mockEvents.map(event => ({
+        setEvents(mockEvents.map(event => ({
           id: parseInt(event.id),
-          name: event.title,
-          description: event.description,
+          name: event.name,
+          description: event.description || '',
           type: event.category,
-          alloted_points: event.points,
+          alloted_points: event.points || 0,
           alloted_berries: 0,
-          scheduled_date: event.date,
-          venue: event.location,
-          capacity: event.maxParticipants,
+          scheduled_date: event.date || '',
+          venue: event.location || '',
+          capacity: event.maxParticipants || 0,
           is_active: true,
           status: 'pending'
         })));
       }
     };
 
-    fetchBounties();
+    fetchEvents();
   }, []);
-  
-  const filteredBounties = bounties.filter(bounty => {
+
+  const filteredEvents = events.filter(event => {
     if (selectedFilter === 'All') return true;
-    return bounty.status.toLowerCase() === selectedFilter.toLowerCase();
+    return event.status.toLowerCase() === selectedFilter.toLowerCase();
   });
-  
+
   const filteredStudentRequests = studentRequests.filter(request => {
     if (selectedFilter === 'All') return true;
     return request.status.toLowerCase() === selectedFilter.toLowerCase();
   });
 
-  const handleApproveBounty = (bountyId: number) => {
+  const handleApproveEvent = (eventId: number) => {
     Alert.alert(
-      'Approve Bounty',
-      'Are you sure you want to approve this bounty?',
+      'Approve Event',
+      'Are you sure you want to approve this event?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Approve', 
+        {
+          text: 'Approve',
           onPress: () => {
-            setBounties(prev =>
-              prev.map(bounty =>
-                bounty.id === bountyId
-                  ? { ...bounty, status: 'approved' }
-                  : bounty
+            setEvents(prev =>
+              prev.map(event =>
+                event.id === eventId
+                  ? { ...event, status: 'approved' }
+                  : event
               )
             );
-            Alert.alert('Success', 'Bounty approved successfully!');
+            Alert.alert('Success', 'Event approved successfully!');
           }
         }
       ]
     );
   };
 
-  const handleRejectBounty = (bountyId: number) => {
+  const handleRejectEvent = (eventId: number) => {
     Alert.alert(
-      'Reject Bounty',
-      'Are you sure you want to reject this bounty?',
+      'Reject Event',
+      'Are you sure you want to reject this event?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reject', 
+        {
+          text: 'Reject',
           style: 'destructive',
           onPress: () => {
-            setBounties(prev =>
-              prev.map(bounty =>
-                bounty.id === bountyId
-                  ? { ...bounty, status: 'rejected' }
-                  : bounty
+            setEvents(prev =>
+              prev.map(event =>
+                event.id === eventId
+                  ? { ...event, status: 'rejected' }
+                  : event
               )
             );
-            Alert.alert('Success', 'Bounty rejected.');
+            Alert.alert('Success', 'Event rejected.');
           }
         }
       ]
@@ -164,7 +164,7 @@ export default function FacultyApprovals() {
   const handleReviewRequest = (request: StudentRequest) => {
     router.push({
       pathname: '/(faculty)/review-student-request',
-      params: { 
+      params: {
         requestId: request.id,
         studentName: request.studentName,
         studentId: request.studentId,
@@ -204,30 +204,30 @@ export default function FacultyApprovals() {
   };
 
   // Notification counts
-  const pendingBountiesCount = bounties.filter(b => b.status === 'pending').length;
+  const pendingEventsCount = events.filter(e => e.status === 'pending').length;
   const pendingRequestsCount = studentRequests.filter(r => r.status === 'pending').length;
 
   // Handle review button click - navigate to full screen review page
-  const handleReviewBounty = (bounty: Bounty) => {
+  const handleReviewEvent = (event: Event) => {
     router.push({
       pathname: '/(faculty)/review-bounty',
-      params: { 
-        bountyId: bounty.id.toString(),
-        bountyName: bounty.name,
-        bountyDescription: bounty.description,
-        bountyDate: bounty.scheduled_date,
-        bountyVenue: bounty.venue,
-        bountyPoints: bounty.alloted_points.toString(),
-        bountyCapacity: bounty.capacity.toString()
+      params: {
+        bountyId: event.id.toString(),
+        bountyName: event.name,
+        bountyDescription: event.description,
+        bountyDate: event.scheduled_date,
+        bountyVenue: event.venue,
+        bountyPoints: event.alloted_points.toString(),
+        bountyCapacity: event.capacity.toString()
       }
     });
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Approvals"
-        subtitle="Review and approve bounties and student requests"
+        subtitle="Review and approve events and student requests"
         showBackButton={shouldShowBackButton}
       />
 
@@ -236,23 +236,23 @@ export default function FacultyApprovals() {
         <TouchableOpacity
           style={[
             styles.sectionButton,
-            activeSection === 'bounties' && { backgroundColor: theme.colors.primary }
+            activeSection === 'events' && { backgroundColor: theme.colors.primary }
           ]}
-          onPress={() => setActiveSection('bounties')}
+          onPress={() => setActiveSection('events')}
         >
           <Text style={[
             styles.sectionButtonText,
-            { color: activeSection === 'bounties' ? '#FFFFFF' : theme.colors.text }
+            { color: activeSection === 'events' ? '#FFFFFF' : theme.colors.text }
           ]}>
-            Bounties Approval
+            Events Approval
           </Text>
-          {pendingBountiesCount > 0 && (
+          {pendingEventsCount > 0 && (
             <View style={[styles.badge, { backgroundColor: '#FF6B35' }]}>
-              <Text style={styles.badgeText}>{pendingBountiesCount}</Text>
+              <Text style={styles.badgeText}>{pendingEventsCount}</Text>
             </View>
           )}
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.sectionButton,
@@ -284,8 +284,8 @@ export default function FacultyApprovals() {
                 style={[
                   styles.filterButton,
                   {
-                    backgroundColor: selectedFilter === filter 
-                      ? theme.colors.primary 
+                    backgroundColor: selectedFilter === filter
+                      ? theme.colors.primary
                       : theme.colors.surface,
                     borderColor: theme.colors.border,
                   }
@@ -294,10 +294,10 @@ export default function FacultyApprovals() {
               >
                 <Text style={[
                   styles.filterButtonText,
-                  { 
-                    color: selectedFilter === filter 
-                      ? '#FFFFFF' 
-                      : theme.colors.textSecondary 
+                  {
+                    color: selectedFilter === filter
+                      ? '#FFFFFF'
+                      : theme.colors.textSecondary
                   }
                 ]}>
                   {filter}
@@ -309,26 +309,26 @@ export default function FacultyApprovals() {
       </View>
 
       {/* Content Section */}
-      <ScrollView 
+      <ScrollView
         style={styles.contentList}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.contentContainer}>
-          {activeSection === 'bounties' ? (
+          {activeSection === 'events' ? (
             <>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Bounties Approval
+                Events Approval
               </Text>
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-                Review and approve faculty-submitted bounties/events
+                Review and approve faculty-submitted events
               </Text>
-              
-              {filteredBounties.length === 0 ? (
+
+              {filteredEvents.length === 0 ? (
                 <AnimatedCard style={styles.emptyCard}>
                   <View style={styles.emptyContent}>
                     <FileText size={48} color={theme.colors.textSecondary} />
                     <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-                      No {selectedFilter.toLowerCase()} bounties
+                      No {selectedFilter.toLowerCase()} events
                     </Text>
                     <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
                       Check back later for new submissions.
@@ -336,71 +336,71 @@ export default function FacultyApprovals() {
                   </View>
                 </AnimatedCard>
               ) : (
-                filteredBounties.map((bounty) => (
-                  <AnimatedCard key={bounty.id} style={styles.contentCard}>
+                filteredEvents.map((event) => (
+                  <AnimatedCard key={event.id} style={styles.contentCard}>
                     <View style={styles.contentHeader}>
                       <View style={[
                         styles.statusIcon,
-                        { backgroundColor: getStatusColor(bounty.status) + '20' }
+                        { backgroundColor: getStatusColor(event.status) + '20' }
                       ]}>
-                        {getStatusIcon(bounty.status)}
+                        {getStatusIcon(event.status)}
                       </View>
                       <View style={styles.contentInfo}>
                         <Text style={[styles.contentTitle, { color: theme.colors.text }]}>
-                          {bounty.name}
+                          {event.name}
                         </Text>
                         <Text style={[styles.contentType, { color: theme.colors.textSecondary }]}>
-                          {bounty.type.charAt(0).toUpperCase() + bounty.type.slice(1)}
+                          {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                         </Text>
                       </View>
                       <View style={styles.pointsContainer}>
                         <View style={styles.pointsBadge}>
                           <Star size={14} color={theme.colors.accent} />
                           <Text style={[styles.pointsText, { color: theme.colors.accent }]}>
-                            {bounty.alloted_points}
+                            {event.alloted_points}
                           </Text>
                         </View>
-                        {bounty.alloted_berries > 0 && (
+                        {event.alloted_berries > 0 && (
                           <View style={styles.pointsBadge}>
                             <Cherry size={14} color={theme.colors.success} />
                             <Text style={[styles.pointsText, { color: theme.colors.success }]}>
-                              {bounty.alloted_berries}
+                              {event.alloted_berries}
                             </Text>
                           </View>
                         )}
                       </View>
                     </View>
-                    
+
                     <Text style={[styles.contentDescription, { color: theme.colors.textSecondary }]}>
-                      {bounty.description}
+                      {event.description}
                     </Text>
-                    
+
                     <View style={styles.contentMeta}>
                       <View style={styles.metaItem}>
                         <Calendar size={14} color={theme.colors.textSecondary} />
                         <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
-                          {new Date(bounty.scheduled_date).toLocaleDateString()}
+                          {new Date(event.scheduled_date).toLocaleDateString()}
                         </Text>
                       </View>
                       <View style={styles.metaItem}>
                         <MapPin size={14} color={theme.colors.textSecondary} />
                         <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
-                          {bounty.venue}
+                          {event.venue}
                         </Text>
                       </View>
                       <View style={styles.metaItem}>
                         <Users size={14} color={theme.colors.textSecondary} />
                         <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
-                          Capacity: {bounty.capacity}
+                          Capacity: {event.capacity}
                         </Text>
                       </View>
                     </View>
-                    
-                    {bounty.status === 'pending' && (
+
+                    {event.status === 'pending' && (
                       <View style={styles.actionButtons}>
                         <TouchableOpacity
                           style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-                          onPress={() => handleReviewBounty(bounty)}
+                          onPress={() => handleReviewEvent(event)}
                         >
                           <Eye size={16} color="#FFFFFF" />
                           <Text style={styles.actionButtonText}>Review</Text>
@@ -419,7 +419,7 @@ export default function FacultyApprovals() {
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
                 Review and approve student-submitted requests
               </Text>
-              
+
               {filteredStudentRequests.length === 0 ? (
                 <AnimatedCard style={styles.emptyCard}>
                   <View style={styles.emptyContent}>
@@ -467,11 +467,11 @@ export default function FacultyApprovals() {
                         )}
                       </View>
                     </View>
-                    
+
                     <Text style={[styles.contentDescription, { color: theme.colors.textSecondary }]}>
                       {request.description}
                     </Text>
-                    
+
                     <View style={styles.contentMeta}>
                       <View style={styles.metaItem}>
                         <Calendar size={14} color={theme.colors.textSecondary} />
@@ -487,7 +487,7 @@ export default function FacultyApprovals() {
                         </View>
                       )}
                     </View>
-                    
+
                     {request.status === 'pending' && (
                       <View style={styles.actionButtons}>
                         <TouchableOpacity

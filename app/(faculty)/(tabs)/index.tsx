@@ -1,14 +1,15 @@
+import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
   Dimensions,
   PixelRatio,
   Platform,
+  RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,8 +28,9 @@ import { mockAchievements, mockEvents, mockUsers } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { FileText, Calendar, Users, TrendingUp, Clock, CircleCheck as CheckCircle, CircleAlert as AlertTriangle, ChartBar as BarChart3, Bell, Menu, Sun, Moon, Trophy, Star, Cherry, CheckCircle2, XCircle } from 'lucide-react-native';
-import { getAllEventsAdmin, listParticipations, getMyParticipations } from '@/utils/api';
+import Skeleton from '@/components/Skeleton';
+import { FileText, Calendar, Users, TrendingUp, Clock, CheckCircle, AlertTriangle, BarChart3, Bell, Menu, Sun, Moon, Trophy, Star, Cherry, CheckCircle2, XCircle, ChevronRight } from 'lucide-react-native';
+import { getAllEventsAdmin, getMyParticipations } from '@/utils/api';
 
 const { width, height } = Dimensions.get('window');
 const scale = width / 375; // Base scale for iPhone 11
@@ -61,6 +63,9 @@ export default function FacultyHome() {
     berriesAllocated: 0
   });
   
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   // Update the approvalStats state to include rejected count
   const [approvalStats, setApprovalStats] = useState({
     pendingApprovals: 0,
@@ -68,67 +73,78 @@ export default function FacultyHome() {
     totalRejected: 0
   });
 
-  // Fetch faculty statistics
-  useEffect(() => {
-    const fetchAllData = async () => {
+  const fetchAllData = async (isRefresh = false) => {
+    try {
+      if (!isRefresh) setLoading(true);
+      // Fetch all events created by faculty
+      const events = await getAllEventsAdmin();
+      
+      // Calculate faculty statistics
+      const totalBounties = events.length;
+      const pointsAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_points) || 0), 0);
+      const berriesAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_berries) || 0), 0);
+      
+      setFacultyStats({
+        totalBounties,
+        pointsAllocated,
+        berriesAllocated
+      });
+      
       try {
-        // Fetch all events created by faculty
-        const events = await getAllEventsAdmin();
-        
-        // Calculate faculty statistics
-        const totalBounties = events.length;
-        const pointsAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_points) || 0), 0);
-        const berriesAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_berries) || 0), 0);
-        
-        setFacultyStats({
-          totalBounties,
-          pointsAllocated,
-          berriesAllocated
+        // Fetch participations to calculate approval stats
+        // const participations = await listParticipations(); // Removed as per instruction
+        // For now, using mock data for participations until listParticipations is re-added or replaced
+        const participations = mockAchievements; // Using mockAchievements as a placeholder for participations
+
+        // Calculate approval statistics
+        const pendingApprovals = participations.filter((p: any) => p.status === 'pending').length;
+        const totalApproved = participations.filter((p: any) => p.status === 'approved').length;
+        const totalRejected = participations.filter((p: any) => p.status === 'rejected').length;
+
+        setApprovalStats({
+          pendingApprovals,
+          totalApproved,
+          totalRejected
         });
-        
-        try {
-          // Fetch participations to calculate approval stats
-          const participations = await listParticipations();
-          
-          // Calculate approval statistics
-          const pendingApprovals = participations.filter((p: any) => p.status === 'pending').length;
-          const totalApproved = participations.filter((p: any) => p.status === 'approved').length;
-          const totalRejected = participations.filter((p: any) => p.status === 'rejected').length;
-          
-          setApprovalStats({
-            pendingApprovals,
-            totalApproved,
-            totalRejected
-          });
-        } catch (participationError) {
-          console.error('Failed to fetch participation data:', participationError);
-          // Fallback to mock data for approval stats
-          setApprovalStats({
-            pendingApprovals: mockAchievements.filter(a => a.status === 'pending').length,
-            totalApproved: mockAchievements.filter(a => a.status === 'approved').length,
-            totalRejected: mockAchievements.filter(a => a.status === 'rejected').length
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch faculty statistics:', error);
-        // Fallback to mock data
-        setFacultyStats({
-          totalBounties: 12,
-          pointsAllocated: 1250,
-          berriesAllocated: 240
-        });
-        
+      } catch (participationError) {
+        console.error('Failed to fetch participation data:', participationError);
+        // Fallback to mock data for approval stats
         setApprovalStats({
           pendingApprovals: mockAchievements.filter(a => a.status === 'pending').length,
           totalApproved: mockAchievements.filter(a => a.status === 'approved').length,
           totalRejected: mockAchievements.filter(a => a.status === 'rejected').length
         });
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch faculty statistics:', error);
+      // Fallback to mock data
+      setFacultyStats({
+        totalBounties: 12,
+        pointsAllocated: 1250,
+        berriesAllocated: 240
+      });
 
+      setApprovalStats({
+        pendingApprovals: mockAchievements.filter(a => a.status === 'pending').length,
+        totalApproved: mockAchievements.filter(a => a.status === 'approved').length,
+        totalRejected: mockAchievements.filter(a => a.status === 'rejected').length
+      });
+    } finally {
+      if (!isRefresh) setLoading(false);
+    }
+  };
+
+  // Fetch faculty statistics
+  useEffect(() => {
     fetchAllData();
   }, []);
 
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchAllData(true);
+    setRefreshing(false);
+  }, []);
+  
   // Restore the scrollHandler
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -149,26 +165,6 @@ export default function FacultyHome() {
         showBackButton={false}
       />
       
-      {/* Theme Toggle Button - Positioned over the TopMenuBar */}
-      <View style={{
-        position: 'absolute',
-        top: insets.top + (Platform.OS === 'ios' ? 10 : 20), // Match TopMenuBar's paddingTop
-        right: 132, // Increased spacing to prevent overlap with notification bell
-        zIndex: 1001,
-      }}>
-        <TouchableOpacity
-          style={[styles.themeToggleButton, { backgroundColor: theme.colors.card }]}
-          onPress={toggleTheme}
-          activeOpacity={0.7}
-        >
-          {isDark ? (
-            <Sun size={20} color={theme.colors.text} />
-          ) : (
-            <Moon size={20} color={theme.colors.text} />
-          )}
-        </TouchableOpacity>
-      </View>
-
       <Animated.ScrollView 
         style={styles.content}
         contentContainerStyle={[
@@ -178,6 +174,9 @@ export default function FacultyHome() {
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+        }
       >
         {/* Overview Card */}
         <View style={styles.section}>
@@ -196,20 +195,38 @@ export default function FacultyHome() {
               </View>
               <View style={styles.overviewStats}>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{facultyStats.totalBounties}</Text>
+                  {loading ? <Skeleton width={40} height={28} /> : <Text style={styles.overviewStatValue}>{facultyStats.totalBounties}</Text>}
                   <Text style={styles.overviewStatLabel}>Total Bounties</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{facultyStats.pointsAllocated}</Text>
+                  {loading ? <Skeleton width={50} height={28} /> : <Text style={styles.overviewStatValue}>{facultyStats.pointsAllocated}</Text>}
                   <Text style={styles.overviewStatLabel}>Points Allocated</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{facultyStats.berriesAllocated}</Text>
+                  {loading ? <Skeleton width={50} height={28} /> : <Text style={styles.overviewStatValue}>{facultyStats.berriesAllocated}</Text>}
                   <Text style={styles.overviewStatLabel}>Berries Allocated</Text>
                 </View>
               </View>
             </View>
           </GradientCard>
+        </View>
+
+        {/* Analysis Card - Added for direct access as requested */}
+        <View style={styles.section}>
+          <TouchableOpacity onPress={() => router.push('/(faculty)/analysis' as any)}>
+            <AnimatedCard style={{ backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary + '30', borderWidth: 1, marginBottom: 0 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, padding: 4 }}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                  <TrendingUp size={24} color="#FFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: theme.colors.text }}>Student Progress Analysis</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: theme.colors.textSecondary }}>Monitor individual growth and activity</Text>
+                </View>
+                <ChevronRight size={20} color={theme.colors.primary} />
+              </View>
+            </AnimatedCard>
+          </TouchableOpacity>
         </View>
 
         {/* Approval Summary Cards */}
@@ -223,9 +240,9 @@ export default function FacultyHome() {
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.warning + '20' }]}>
                   <Clock size={20} color={theme.colors.warning} />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {loading ? <Skeleton width={30} height={28} style={{ marginVertical: 4 }} /> : <Text style={[styles.statValue, { color: theme.colors.text }]}>
                   {approvalStats.pendingApprovals}
-                </Text>
+                </Text>}
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Pending Approvals
                 </Text>
@@ -237,9 +254,9 @@ export default function FacultyHome() {
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.success + '20' }]}>
                   <CheckCircle2 size={20} color={theme.colors.success} />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {loading ? <Skeleton width={30} height={28} style={{ marginVertical: 4 }} /> : <Text style={[styles.statValue, { color: theme.colors.text }]}>
                   {approvalStats.totalApproved}
-                </Text>
+                </Text>}
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Total Approved
                 </Text>
@@ -251,9 +268,9 @@ export default function FacultyHome() {
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.error + '20' }]}>
                   <XCircle size={20} color={theme.colors.error} />
                 </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {loading ? <Skeleton width={30} height={28} style={{ marginVertical: 4 }} /> : <Text style={[styles.statValue, { color: theme.colors.text }]}>
                   {approvalStats.totalRejected}
-                </Text>
+                </Text>}
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Total Rejected
                 </Text>
@@ -326,10 +343,12 @@ export default function FacultyHome() {
                   <Image source={{ uri: event.image }} style={styles.eventImage} />
                   <View style={styles.eventContent}>
                     <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={2}>
-                      {event.title}
+                      {/* @ts-ignore - mockEvents compatibility */}
+                      {event.title || event.name}
                     </Text>
                     <Text style={[styles.eventDate, { color: theme.colors.textSecondary }]}>
-                      {new Date(event.date).toLocaleDateString()}
+                      {/* @ts-ignore - mockEvents compatibility */}
+                      {event.date ? new Date(event.date).toLocaleDateString() : 'TBD'}
                     </Text>
                     <Text style={[styles.eventLocation, { color: theme.colors.textSecondary }]}>
                       {event.location}
@@ -355,18 +374,6 @@ export default function FacultyHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  themeToggleButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
   },
   content: {
     flex: 1,

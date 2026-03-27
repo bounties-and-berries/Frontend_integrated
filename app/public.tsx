@@ -1,12 +1,13 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
   TextInput,
+  ImageBackground
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -23,6 +24,8 @@ import {
   Medal,
   TrendingUp
 } from 'lucide-react-native';
+
+const backgroundImage = require('@/assets/images/leaderboard-bg.png');
 
 export default function PublicDashboard() {
   const { theme } = useTheme();
@@ -70,9 +73,10 @@ export default function PublicDashboard() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <LinearGradient
-        colors={theme.colors.gradient.primary}
+      <ImageBackground
+        source={backgroundImage}
         style={styles.header}
+        imageStyle={{ opacity: 0.8 }}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity 
@@ -88,7 +92,7 @@ export default function PublicDashboard() {
             </Text>
           </View>
         </View>
-      </LinearGradient>
+      </ImageBackground>
 
       {/* Search Bar */}
       <View style={styles.searchSection}>
@@ -122,7 +126,7 @@ export default function PublicDashboard() {
                     {getRankIcon(rank)}
                   </View>
                   <Image
-                    source={{ uri: student.profileImage }}
+                    source={student.profileImage ? { uri: student.profileImage } : require('@/assets/images/default-avatar.png')}
                     style={[
                       styles.podiumImage,
                       rank === 1 && styles.firstPlaceImage
@@ -180,7 +184,7 @@ export default function PublicDashboard() {
                         </Text>
                       </View>
                       <Image
-                        source={{ uri: student.profileImage }}
+                        source={student.profileImage ? { uri: student.profileImage } : require('@/assets/images/default-avatar.png')}
                         style={styles.studentImage}
                       />
                       <View style={styles.studentInfo}>

@@ -11,7 +11,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { mockNotifications } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Bell, CircleCheck as CheckCircle, Info, TriangleAlert as AlertTriangle, Circle as XCircle, Clock } from 'lucide-react-native';
+import { Bell, CheckCircle, Info, AlertTriangle, Circle as XCircle, Clock } from 'lucide-react-native';
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -65,7 +65,7 @@ export default function FacultyNotifications() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Notifications"
         subtitle={`${unreadCount} unread notifications`}
         showBackButton={true}
@@ -84,7 +84,7 @@ export default function FacultyNotifications() {
       )}
 
       {/* Notifications List */}
-      <ScrollView 
+      <ScrollView
         style={styles.notificationsList}
         showsVerticalScrollIndicator={false}
       >
@@ -105,20 +105,20 @@ export default function FacultyNotifications() {
             notifications.map((notification) => {
               const IconComponent = getNotificationIcon(notification.type);
               const iconColor = getNotificationColor(notification.type, theme);
-              
+
               const dynamicCardStyle: ViewStyle = {
-                backgroundColor: notification.read 
-                  ? theme.colors.card 
+                backgroundColor: notification.read
+                  ? theme.colors.card
                   : theme.colors.primary + '05',
                 borderColor: notification.read
                   ? theme.colors.border
                   : theme.colors.primary + '20',
                 borderWidth: notification.read ? 0 : 1,
               };
-              
+
               return (
-                <AnimatedCard 
-                  key={notification.id} 
+                <AnimatedCard
+                  key={notification.id}
                   style={StyleSheet.flatten([styles.notificationCard, dynamicCardStyle])}
                   onPress={() => markAsRead(notification.id)}
                 >
@@ -129,12 +129,12 @@ export default function FacultyNotifications() {
                     ]}>
                       <IconComponent size={20} color={iconColor} />
                     </View>
-                    
+
                     <View style={styles.notificationInfo}>
                       <View style={styles.notificationHeader}>
                         <Text style={[
-                          styles.notificationTitle, 
-                          { 
+                          styles.notificationTitle,
+                          {
                             color: theme.colors.text,
                             fontFamily: notification.read ? 'Inter-Medium' : 'Inter-SemiBold'
                           }
@@ -145,14 +145,14 @@ export default function FacultyNotifications() {
                           <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />
                         )}
                       </View>
-                      
+
                       <Text style={[
-                        styles.notificationMessage, 
+                        styles.notificationMessage,
                         { color: theme.colors.textSecondary, marginTop: 6, marginBottom: 4 }
                       ]} numberOfLines={3}>
                         {notification.message}
                       </Text>
-                      
+
                       <View style={styles.notificationMeta}>
                         <Clock size={12} color={theme.colors.textSecondary} />
                         <Text style={[styles.notificationDate, { color: theme.colors.textSecondary, marginLeft: 6 }]}>

@@ -1,22 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import { Image } from 'expo-image';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
   Dimensions,
+  RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Student } from '@/types';
-import { searchEvents } from '@/utils/api';
+import { useUserBerries, useTrendingBounties, useStudentStats } from '@/hooks/useStudent';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Trophy, Star, TrendingUp, Calendar, Gift, Home, History } from 'lucide-react-native';
+import Skeleton from '@/components/Skeleton';
+import { Trophy, Star, TrendingUp, Gift, History } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -27,35 +29,18 @@ export default function StudentHome() {
   const router = useRouter();
   const student = user as Student;
 
-  const [popularEvents, setPopularEvents] = useState<any[]>([]);
-  const [loadingTrending, setLoadingTrending] = useState(false);
-  const [trendingError, setTrendingError] = useState('');
+  const { data: berries, isLoading: loadingBerries, refetch: refetchBerries } = useUserBerries(user?.id);
+  const { data: popularEvents, isLoading: loadingTrending, refetch: refetchTrending } = useTrendingBounties();
+  const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useStudentStats(user?.id);
 
-  useEffect(() => {
-    const fetchTrending = async () => {
-      setLoadingTrending(true);
-      setTrendingError('');
-      try {
-        const res = await searchEvents({
-          filters: { status: 'trending' },
-          sortBy: 'trending_score',
-          sortOrder: 'desc',
-          pageNumber: 1,
-          pageSize: 3,
-        });
-        setPopularEvents(res.results || []);
-      } catch (e: any) {
-        setTrendingError(e.message || 'Failed to fetch trending bounties');
-      } finally {
-        setLoadingTrending(false);
-      }
-    };
-    fetchTrending();
-  }, []);
+  const onRefresh = React.useCallback(async () => {
+    await Promise.all([refetchBerries(), refetchTrending(), refetchStats()]);
+  }, [refetchBerries, refetchTrending, refetchStats]);
+
+  const isLoading = loadingBerries || loadingTrending || loadingStats;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Menu Bar */}
       <TopMenuBar 
         title="Good Morning"
         subtitle={`Welcome back, ${student?.name}`}
@@ -63,7 +48,15 @@ export default function StudentHome() {
 
       <ScrollView 
         style={styles.content}
+        contentContainerStyle={styles.scrollPadding}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={isLoading} 
+            onRefresh={onRefresh} 
+            tintColor={theme.colors.primary} 
+          />
+        }
       >
         {/* Points Card */}
         <View style={styles.section}>
@@ -72,7 +65,7 @@ export default function StudentHome() {
               <View style={styles.pointsHeader}>
                 <View>
                   <Text style={styles.pointsLabel}>Total Berries</Text>
-                  <Text style={styles.pointsValue}>{student?.totalPoints}</Text>
+                  <Text style={styles.pointsValue}>{berries || 0}</Text>
                 </View>
                 <View style={styles.trophyContainer}>
                   <Trophy size={40} color="#FFFFFF" />
@@ -83,12 +76,12 @@ export default function StudentHome() {
                   <View 
                     style={[
                       styles.progressFill, 
-                      { width: `${Math.min((student?.totalPoints || 0) / 3000 * 100, 100)}%` }
+                      { width: `${Math.min((berries || 0) / 3000 * 100, 100)}%` }
                     ]} 
                   />
                 </View>
                 <Text style={styles.progressText}>
-                  {3000 - (student?.totalPoints || 0)} berries to next level
+                  {Math.max(3000 - (berries || 0), 0)} berries to next level
                 </Text>
               </View>
             </View>
@@ -101,7 +94,9 @@ export default function StudentHome() {
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <Star size={24} color={theme.colors.accent} />
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>12</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                    {stats?.achievements?.unique_bounties || 0}
+                </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Achievements
                 </Text>
@@ -111,9 +106,11 @@ export default function StudentHome() {
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <TrendingUp size={24} color={theme.colors.success} />
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>5</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                    {stats?.achievements?.bounties_completed || 0}
+                </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  This Month
+                  Completed
                 </Text>
               </View>
             </AnimatedCard>
@@ -121,7 +118,9 @@ export default function StudentHome() {
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <Gift size={24} color={theme.colors.secondary} />
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>3</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                    {stats?.achievements?.rewards_claimed || 0}
+                </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
                   Redeemed
                 </Text>
@@ -146,11 +145,20 @@ export default function StudentHome() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.horizontalList}>
               {loadingTrending ? (
-                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', marginTop: 20 }}>Loading...</Text>
-              ) : trendingError ? (
-                <Text style={{ color: theme.colors.error, textAlign: 'center', marginTop: 20 }}>{trendingError}</Text>
-              ) : popularEvents.length === 0 ? (
-                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', marginTop: 20 }}>No trending bounties found.</Text>
+                <>
+                  {[1, 2, 3].map((key) => (
+                    <AnimatedCard key={key} style={[styles.eventCard, { marginRight: 16 }]}>
+                      <Skeleton height={100} borderRadius={12} style={{ marginBottom: 12 }} />
+                      <View style={styles.eventContent}>
+                        <Skeleton height={16} width="80%" style={{ marginBottom: 6 }} />
+                        <Skeleton height={14} width="50%" style={{ marginBottom: 6 }} />
+                        <Skeleton height={14} width="40%" />
+                      </View>
+                    </AnimatedCard>
+                  ))}
+                </>
+              ) : !popularEvents || popularEvents.length === 0 ? (
+                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', padding: 20 }}>No trending bounties found.</Text>
               ) : (
                 popularEvents.map((event: any) => (
                   <TouchableOpacity key={event.id} onPress={() => router.push('/(student)/events')}>
@@ -236,6 +244,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollPadding: {
+    paddingBottom: 120,
   },
   section: {
     paddingHorizontal: 20,

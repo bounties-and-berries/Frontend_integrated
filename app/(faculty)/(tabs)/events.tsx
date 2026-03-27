@@ -1,16 +1,16 @@
+import { Image } from 'expo-image';
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
   TextInput,
   Alert,
   Modal,
   Platform,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -122,7 +122,10 @@ export default function FacultyEvents() {
   };
 
   const handleEditEvent = (eventId: string) => {
-    Alert.alert('Edit Event', `Edit event ${eventId} - Feature coming soon.`);
+    router.push({
+      pathname: '/(faculty)/edit-event',
+      params: { id: eventId }
+    } as any);
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -134,9 +137,15 @@ export default function FacultyEvents() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            setEvents(prev => prev.filter(event => event.id.toString() !== eventId));
-            Alert.alert('Success', 'Event deleted successfully!');
+          onPress: async () => {
+            try {
+              const { deleteEvent } = await import('@/utils/api');
+              await deleteEvent(eventId);
+              setEvents(prev => prev.filter(event => event.id.toString() !== eventId));
+              Alert.alert('Success', 'Event deleted successfully!');
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete event');
+            }
           }
         }
       ]

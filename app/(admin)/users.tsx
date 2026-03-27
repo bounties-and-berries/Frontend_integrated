@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { Image } from 'expo-image';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +8,15 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Image,
+  Platform
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { mockUsers } from '@/data/mockData';
+import { bulkCreateUsers, getAllUsers, deleteUser, buyBerries } from '@/utils/api';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
 import { Plus, Search, Users, CreditCard as Edit, Trash2, Upload, Eye } from 'lucide-react-native';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const roleFilters = ['All', 'Student', 'Faculty'];
 
@@ -23,48 +25,123 @@ export default function AdminUsers() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
-  const [users, setUsers] = useState(mockUsers);
-  
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = selectedRole === 'All' || 
-                       user.role.toLowerCase() === selectedRole.toLowerCase();
-    return matchesSearch && matchesRole;
-  });
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { isMobile } = useResponsive();
+
+  const styles = getStyles(theme, isMobile);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllUsers({
+        role: selectedRole !== 'All' ? selectedRole.toLowerCase() : undefined,
+        search: searchQuery || undefined
+      });
+      
+      let usersList = [];
+      if (Array.isArray(data)) {
+        usersList = data;
+      } else if (data && Array.isArray(data.results)) {
+        usersList = data.results;
+      } else if (data && Array.isArray(data.data)) {
+        usersList = data.data;
+      }
+      
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      Alert.alert('Error', 'Failed to fetch users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [selectedRole, searchQuery]);
 
   const handleAddUser = () => {
     router.push('/(admin)/add-user' as any);
   };
 
-  const handleUploadExcel = () => {
-    Alert.alert(
-      'Upload Excel File',
-      'Select an Excel file to bulk import users. The file should contain columns: Name, Email, Role, Department, Year (for students), Subject (for faculty).',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Select File', 
-          onPress: () => {
-            // Simulate file selection and processing
-            Alert.alert(
-              'Processing...',
-              'Excel file is being processed. This may take a few moments.',
-              [
-                { 
-                  text: 'OK', 
-                  onPress: () => {
-                    setTimeout(() => {
-                      Alert.alert('Success', '25 users have been successfully imported from the Excel file!');
-                    }, 2000);
-                  }
-                }
-              ]
-            );
-          }
+  const handleUploadExcel = async () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('Upload Excel', 'Bulk user upload is currently only available on web browser.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Create a file input element
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.xlsx,.xls,.csv';
+
+      // Handle file selection
+      fileInput.onchange = async (event: any) => {
+        const file = event.target.files[0];
+        if (!file) {
+          setLoading(false);
+          return;
         }
-      ]
-    );
+
+        try {
+          const result = await bulkCreateUsers(file);
+          Alert.alert(
+            'Success',
+            `${result.count || 'Multiple'} users have been successfully imported!`,
+            [{ text: 'OK', onPress: fetchUsers }]
+          );
+        } catch (error: any) {
+          Alert.alert('Error', error.message || 'Failed to upload users');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Trigger file selection
+      fileInput.click();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to upload users');
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    try {
+      // Create CSV content for the template
+      if (Platform.OS !== 'web') {
+        Alert.alert('Download Template', 'CSV template download is only available on web browser.');
+        return;
+      }
+      const csvContent = `name,email,mobile,role,college_id,department,year\nJohn Doe,john.doe@example.com,1234567890,student,12345,Computer Science,2\nJane Smith,jane.smith@example.com,0987654321,faculty,54321,Mathematics,`;
+
+      // Create a Blob with the CSV content
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+      // Create a temporary link element
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      // Set link attributes for download
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'user_template.csv');
+
+      // Trigger download
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading template:', error);
+      Alert.alert('Error', 'Failed to download template. Please try again.');
+    }
   };
 
   const handleViewUser = (userId: string) => {
@@ -72,7 +149,10 @@ export default function AdminUsers() {
   };
 
   const handleEditUser = (userId: string) => {
-    Alert.alert('Edit User', `Edit user ${userId} - Feature coming soon.`);
+    router.push({
+      pathname: '/(admin)/edit-user',
+      params: { id: userId }
+    } as any);
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -84,16 +164,79 @@ export default function AdminUsers() {
       `Are you sure you want to delete ${user.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setUsers(prev => prev.filter(user => user.id !== userId));
-            Alert.alert('Success', 'User deleted successfully!');
+          onPress: async () => {
+            try {
+              await deleteUser(userId);
+              setUsers(prev => prev.filter(user => user.id !== userId));
+              Alert.alert('Success', 'User deleted successfully!');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete user');
+            }
           }
         }
       ]
     );
+  };
+
+  const handleBuyBerries = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    if (Platform.OS === 'web') {
+      const amount = window.prompt(`Enter berry amount to grant to ${user.name}:`, '10');
+      if (amount && !isNaN(parseInt(amount))) {
+        try {
+          setLoading(true);
+          await buyBerries(userId, parseInt(amount));
+          Alert.alert('Success', `Successfully granted ${amount} berries to ${user.name}`);
+          fetchUsers();
+        } catch (error: any) {
+          Alert.alert('Error', error.message || 'Failed to grant berries');
+        } finally {
+          setLoading(false);
+        }
+      }
+      return;
+    }
+
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Grant Berries',
+        `Enter the number of berries to grant to ${user.name}:`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Grant', 
+            onPress: async (amount) => {
+              if (amount && !isNaN(parseInt(amount))) {
+                try {
+                  setLoading(true);
+                  await buyBerries(userId, parseInt(amount));
+                  Alert.alert('Success', `Successfully granted ${amount} berries`);
+                  fetchUsers();
+                } catch (error: any) {
+                  Alert.alert('Error', error.message || 'Failed to grant berries');
+                } finally {
+                  setLoading(false);
+                }
+              }
+            }
+          }
+        ],
+        'plain-text',
+        '10'
+      );
+    } else {
+      // For web or Android (Alert.prompt is iOS only)
+      Alert.alert(
+        'Grant Berries',
+        'Bulk berry granting is coming soon for this platform. Please use individual user edit for now.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const getRoleColor = (role: string) => {
@@ -111,20 +254,21 @@ export default function AdminUsers() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Menu Bar */}
-      <TopMenuBar 
+      <TopMenuBar
         title="User Management"
         subtitle="Manage students and faculty"
       />
 
-      {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
           onPress={handleUploadExcel}
+          disabled={loading}
         >
           <Upload size={18} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Upload Excel</Text>
+          <Text style={styles.actionButtonText}>
+            {loading ? 'Uploading...' : 'Upload Excel'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
@@ -133,9 +277,15 @@ export default function AdminUsers() {
           <Plus size={18} color="#FFFFFF" />
           <Text style={styles.actionButtonText}>Add User</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: theme.colors.accent }]}
+          onPress={handleDownloadTemplate}
+        >
+          <Upload size={18} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Download Template</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchSection}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <Search size={20} color={theme.colors.textSecondary} />
@@ -149,7 +299,6 @@ export default function AdminUsers() {
         </View>
       </View>
 
-      {/* Role Filter */}
       <View style={styles.filterSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.filterButtons}>
@@ -159,8 +308,8 @@ export default function AdminUsers() {
                 style={[
                   styles.filterButton,
                   {
-                    backgroundColor: selectedRole === role 
-                      ? theme.colors.primary 
+                    backgroundColor: selectedRole === role
+                      ? theme.colors.primary
                       : theme.colors.surface,
                     borderColor: theme.colors.border,
                   }
@@ -169,10 +318,10 @@ export default function AdminUsers() {
               >
                 <Text style={[
                   styles.filterButtonText,
-                  { 
-                    color: selectedRole === role 
-                      ? '#FFFFFF' 
-                      : theme.colors.textSecondary 
+                  {
+                    color: selectedRole === role
+                      ? '#FFFFFF'
+                      : theme.colors.textSecondary
                   }
                 ]}>
                   {role}
@@ -183,13 +332,12 @@ export default function AdminUsers() {
         </ScrollView>
       </View>
 
-      {/* Users List */}
-      <ScrollView 
+      <ScrollView
         style={styles.usersList}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.usersContainer}>
-          {filteredUsers.length === 0 ? (
+          {users.length === 0 ? (
             <AnimatedCard style={styles.emptyCard}>
               <View style={styles.emptyContent}>
                 <Users size={48} color={theme.colors.textSecondary} />
@@ -202,12 +350,12 @@ export default function AdminUsers() {
               </View>
             </AnimatedCard>
           ) : (
-            filteredUsers.map((user) => (
+            users.map((user) => (
               <AnimatedCard key={user.id} style={styles.userCard}>
                 <View style={styles.userContent}>
                   <View style={styles.userLeft}>
                     <Image
-                      source={{ uri: user.profileImage }}
+                      source={user.profileImage ? { uri: user.profileImage } : require('@/assets/images/default-avatar.png')}
                       style={styles.userImage}
                     />
                     <View style={styles.userInfo}>
@@ -226,7 +374,7 @@ export default function AdminUsers() {
                             styles.roleTagText,
                             { color: getRoleColor(user.role) }
                           ]}>
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                            {(user.role || 'user').charAt(0).toUpperCase() + (user.role || 'user').slice(1)}
                           </Text>
                         </View>
                         {user.role === 'student' && (
@@ -242,8 +390,14 @@ export default function AdminUsers() {
                       </View>
                     </View>
                   </View>
-                  
+
                   <View style={styles.userActions}>
+                    <TouchableOpacity
+                      style={[styles.userActionButton, { backgroundColor: theme.colors.accent + '20' }]}
+                      onPress={() => handleBuyBerries(user.id)}
+                    >
+                      <Plus size={16} color={theme.colors.accent} />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.userActionButton, { backgroundColor: theme.colors.primary + '20' }]}
                       onPress={() => handleViewUser(user.id)}
@@ -273,24 +427,25 @@ export default function AdminUsers() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   actionButtonsContainer: {
-    flexDirection: 'row',
+    flexDirection: isMobile ? 'column' : 'row',
     paddingHorizontal: 20,
     paddingVertical: 16,
     gap: 12,
   },
   actionButton: {
-    flex: 1,
+    flex: isMobile ? 0 : 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
+    minHeight: 44,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -328,6 +483,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
+    minHeight: 44,
   },
   filterButtonText: {
     fontSize: 14,
@@ -362,9 +518,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   userContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
     justifyContent: 'space-between',
+    gap: isMobile ? 16 : 0,
   },
   userLeft: {
     flexDirection: 'row',
@@ -411,6 +568,7 @@ const styles = StyleSheet.create({
   userActions: {
     flexDirection: 'row',
     gap: 8,
+    alignSelf: isMobile ? 'flex-end' : 'center',
   },
   userActionButton: {
     width: 32,
@@ -418,5 +576,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    minWidth: 44, // Ensure touch target size
+    minHeight: 44, // Ensure touch target size
   },
 });

@@ -7,14 +7,16 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getMyParticipations } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { getStudentHistory } from '@/utils/api';
 import AnimatedCard from '@/components/AnimatedCard';
-import { TrendingUp, TrendingDown, Filter, Calendar } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Calendar } from 'lucide-react-native';
 
 const filterOptions = ['All', 'Earned', 'Spent'];
 
 export default function StudentHistory() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [participations, setParticipations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function StudentHistory() {
       setLoading(true);
       setError('');
       try {
-        const data = await getMyParticipations();
+        const data = await getStudentHistory(user?.id || '');
         setParticipations(data.participations || []);
       } catch (e: any) {
         setError(e.message || 'Failed to fetch participation history');
@@ -33,8 +35,10 @@ export default function StudentHistory() {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    if (user?.id) {
+      fetchData();
+    }
+  }, [user?.id]);
 
   // Map participations to transaction-like objects
   const transactions = participations.map((p) => ({
@@ -48,8 +52,8 @@ export default function StudentHistory() {
 
   const filteredTransactions = transactions.filter(transaction => {
     if (selectedFilter === 'All') return true;
-    return selectedFilter === 'Earned' 
-      ? transaction.type === 'earned' 
+    return selectedFilter === 'Earned'
+      ? transaction.type === 'earned'
       : transaction.type === 'spent';
   });
 
@@ -88,7 +92,7 @@ export default function StudentHistory() {
               </View>
             </View>
           </AnimatedCard>
-          
+
           <AnimatedCard style={styles.summaryCard}>
             <View style={styles.summaryContent}>
               <View style={[styles.summaryIcon, { backgroundColor: theme.colors.error + '20' }]}>
@@ -116,8 +120,8 @@ export default function StudentHistory() {
               style={[
                 styles.filterButton,
                 {
-                  backgroundColor: selectedFilter === filter 
-                    ? theme.colors.primary 
+                  backgroundColor: selectedFilter === filter
+                    ? theme.colors.primary
                     : theme.colors.surface,
                   borderColor: theme.colors.border,
                 }
@@ -126,10 +130,10 @@ export default function StudentHistory() {
             >
               <Text style={[
                 styles.filterButtonText,
-                { 
-                  color: selectedFilter === filter 
-                    ? '#FFFFFF' 
-                    : theme.colors.textSecondary 
+                {
+                  color: selectedFilter === filter
+                    ? '#FFFFFF'
+                    : theme.colors.textSecondary
                 }
               ]}>
                 {filter}
@@ -140,7 +144,7 @@ export default function StudentHistory() {
       </View>
 
       {/* Transactions List */}
-      <ScrollView 
+      <ScrollView
         style={styles.transactionsList}
         showsVerticalScrollIndicator={false}
       >
@@ -157,29 +161,29 @@ export default function StudentHistory() {
                 <View style={styles.transactionContent}>
                   <View style={[
                     styles.transactionIcon,
-                    { 
-                      backgroundColor: transaction.type === 'earned' 
-                        ? theme.colors.success + '20' 
+                    {
+                      backgroundColor: transaction.type === 'earned'
+                        ? theme.colors.success + '20'
                         : theme.colors.error + '20'
                     }
                   ]}>
                     <TrendingUp size={20} color={theme.colors.success} />
                   </View>
                   <View style={styles.transactionInfo}>
-                    <Text style={[styles.transactionDescription, { color: theme.colors.text }]}> 
+                    <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
                       {transaction.description}
                     </Text>
                     <View style={styles.transactionMeta}>
                       <Calendar size={12} color={theme.colors.textSecondary} />
-                      <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}> 
+                      <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
                         {new Date(transaction.date).toLocaleDateString()}
                       </Text>
                       {transaction.category && (
                         <>
-                          <Text style={[styles.transactionSeparator, { color: theme.colors.textSecondary }]}> 
+                          <Text style={[styles.transactionSeparator, { color: theme.colors.textSecondary }]}>
                             •
                           </Text>
-                          <Text style={[styles.transactionCategory, { color: theme.colors.textSecondary }]}> 
+                          <Text style={[styles.transactionCategory, { color: theme.colors.textSecondary }]}>
                             {transaction.category}
                           </Text>
                         </>
@@ -193,7 +197,7 @@ export default function StudentHistory() {
                     ]}>
                       +{transaction.points}
                     </Text>
-                    <Text style={[styles.transactionPointsLabel, { color: theme.colors.textSecondary }]}> 
+                    <Text style={[styles.transactionPointsLabel, { color: theme.colors.textSecondary }]}>
                       points
                     </Text>
                   </View>

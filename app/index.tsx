@@ -19,7 +19,7 @@ export default function Index() {
             router.replace('/(student)');
             break;
           case 'faculty':
-            router.replace('/(faculty)');
+            router.replace('/(faculty)' as any);
             break;
           case 'admin':
             router.replace('/(admin)');

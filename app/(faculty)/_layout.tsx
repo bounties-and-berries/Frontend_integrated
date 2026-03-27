@@ -1,6 +1,5 @@
-import { Stack, Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
-import { User, FileText, Calendar } from 'lucide-react-native';
 
 export default function FacultyLayout() {
   const { theme } = useTheme();
@@ -18,15 +17,16 @@ export default function FacultyLayout() {
     >
       {/* Main tab navigation for primary sections */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      
+
       {/* Stack pages that slide in from right */}
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="settings" />
-      <Stack.Screen name="student-progress" />
       <Stack.Screen name="create-event" />
       <Stack.Screen name="review-bounty" />
       <Stack.Screen name="review-student-request" />
+      <Stack.Screen name="raise-query" />
+      <Stack.Screen name="profile" />
     </Stack>
   );
 }

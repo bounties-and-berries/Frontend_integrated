@@ -12,7 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { CircleCheck as CheckCircle, Circle as XCircle, Calendar, MapPin, Star, Eye, User } from 'lucide-react-native';
+import { Calendar, Eye, Users } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -25,61 +25,61 @@ interface Participant {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-export default function ReviewBounty() {
+export default function ReviewEvent() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   
-  // Bounty data from navigation params
-  const bountyId = params.bountyId ? parseInt(params.bountyId as string) : 0;
-  const bountyName = params.bountyName as string || 'Unknown Bounty';
-  const bountyDescription = params.bountyDescription as string || '';
-  const bountyDate = params.bountyDate as string || '';
-  const bountyVenue = params.bountyVenue as string || '';
-  const bountyPoints = params.bountyPoints ? parseInt(params.bountyPoints as string) : 0;
-  const bountyCapacity = params.bountyCapacity ? parseInt(params.bountyCapacity as string) : 0;
+  // Event data from navigation params
+  const eventId = params.bountyId ? parseInt(params.bountyId as string) : 0;
+  const eventName = params.bountyName as string || 'Unknown Event';
+  const eventDescription = params.bountyDescription as string || '';
+  const eventDate = params.bountyDate as string || '';
+  const eventVenue = params.bountyVenue as string || '';
+  const eventPoints = params.bountyPoints ? parseInt(params.bountyPoints as string) : 0;
+  const eventCapacity = params.bountyCapacity ? parseInt(params.bountyCapacity as string) : 0;
   
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantSelections, setParticipantSelections] = useState<Record<string, '1st' | '2nd' | null>>({});
   
   // Fetch participants when component mounts
   useEffect(() => {
-    // In a real app, this would fetch actual participants based on bountyId
+    // In a real app, this would fetch actual participants based on eventId
     // For now, we'll use mock data
     const mockParticipants: Participant[] = [
       {
         id: '1',
         name: 'Alice Johnson',
         proofUrl: 'https://example.com/proof1.pdf',
-        points: bountyPoints,
+        points: eventPoints,
         status: 'pending'
       },
       {
         id: '2',
         name: 'Bob Smith',
         proofUrl: 'https://example.com/proof2.pdf',
-        points: bountyPoints,
+        points: eventPoints,
         status: 'pending'
       },
       {
         id: '3',
         name: 'Charlie Brown',
         proofUrl: 'https://example.com/proof3.pdf',
-        points: bountyPoints,
+        points: eventPoints,
         status: 'pending'
       },
       {
         id: '4',
         name: 'Diana Prince',
         proofUrl: 'https://example.com/proof4.pdf',
-        points: bountyPoints,
+        points: eventPoints,
         status: 'pending'
       },
       {
         id: '5',
         name: 'Edward Norton',
         proofUrl: 'https://example.com/proof5.pdf',
-        points: bountyPoints,
+        points: eventPoints,
         status: 'pending'
       }
     ];
@@ -116,7 +116,7 @@ export default function ReviewBounty() {
     // In a real app, this would submit the review to the backend
     Alert.alert(
       'Review Submitted',
-      `Successfully submitted review for ${bountyName}.\n\n` +
+      `Successfully submitted review for ${eventName}.\n\n` +
       `1st Prize: ${firstPrizeCount}\n` +
       `2nd Prize: ${secondPrizeCount}\n` +
       `No Points: ${participants.length - firstPrizeCount - secondPrizeCount}`,
@@ -146,38 +146,36 @@ export default function ReviewBounty() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TopMenuBar 
-        title="Review Bounty"
+        title="Review Event"
         showBackButton={true}
         onBackPress={() => router.back()}
       />
 
       <ScrollView style={styles.content}>
-        {/* Bounty Details */}
-        <AnimatedCard style={styles.bountyDetailsCard}>
-          <Text style={[styles.bountyTitle, { color: theme.colors.text }]}>
-            {bountyName}
+        {/* Event Details */}
+        <AnimatedCard style={styles.eventDetailsCard}>
+          <Text style={[styles.eventTitle, { color: theme.colors.text }]}>
+            {eventName}
           </Text>
-          <Text style={[styles.bountyDescription, { color: theme.colors.textSecondary }]}>
-            {bountyDescription}
+          <Text style={[styles.eventDescription, { color: theme.colors.textSecondary }]}>
+            {eventDescription}
           </Text>
           
-          <View style={styles.bountyMeta}>
+          <View style={styles.eventMeta}>
             <View style={styles.metaItem}>
               <Calendar size={16} color={theme.colors.textSecondary} />
               <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
-                {new Date(bountyDate).toLocaleDateString()}
+                {new Date(eventDate).toLocaleDateString()}
               </Text>
             </View>
             <View style={styles.metaItem}>
-              <MapPin size={16} color={theme.colors.textSecondary} />
               <Text style={[styles.metaText, { color: theme.colors.textSecondary }]}>
-                {bountyVenue}
+                {eventVenue}
               </Text>
             </View>
             <View style={styles.metaItem}>
-              <Star size={16} color={theme.colors.accent} />
               <Text style={[styles.metaText, { color: theme.colors.accent }]}>
-                {bountyPoints} Points
+                {eventPoints} Points
               </Text>
             </View>
           </View>
@@ -196,7 +194,7 @@ export default function ReviewBounty() {
             <AnimatedCard key={participant.id} style={styles.participantCard}>
               <View style={styles.participantHeader}>
                 <View style={styles.participantInfo}>
-                  <User size={20} color={theme.colors.textSecondary} />
+                  <Users size={20} color={theme.colors.textSecondary} />
                   <Text style={[styles.participantName, { color: theme.colors.text }]}>
                     {participant.name}
                   </Text>
@@ -213,7 +211,7 @@ export default function ReviewBounty() {
                       participantSelections[participant.id] === '1st' ? null : '1st')}
                   >
                     {participantSelections[participant.id] === '1st' && (
-                      <CheckCircle size={12} color="#FFFFFF" />
+                      <View style={styles.checkmark} />
                     )}
                   </TouchableOpacity>
                   <Text style={[styles.checkboxLabel, { color: theme.colors.textSecondary }]}>
@@ -231,7 +229,7 @@ export default function ReviewBounty() {
                       participantSelections[participant.id] === '2nd' ? null : '2nd')}
                   >
                     {participantSelections[participant.id] === '2nd' && (
-                      <CheckCircle size={12} color="#FFFFFF" />
+                      <View style={styles.checkmark} />
                     )}
                   </TouchableOpacity>
                   <Text style={[styles.checkboxLabel, { color: theme.colors.textSecondary }]}>
@@ -273,21 +271,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
   },
-  bountyDetailsCard: {
+  eventDetailsCard: {
     marginBottom: 20,
   },
-  bountyTitle: {
+  eventTitle: {
     fontSize: 20,
     fontFamily: 'Poppins-Bold',
     marginBottom: 8,
   },
-  bountyDescription: {
+  eventDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     lineHeight: 20,
     marginBottom: 12,
   },
-  bountyMeta: {
+  eventMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
@@ -334,6 +332,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  checkmark: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
   },
   checkboxLabel: {
     fontSize: 12,

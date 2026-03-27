@@ -13,7 +13,7 @@ import { Student } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { TrendingUp, Users, Award, ChartBar as BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
+import { TrendingUp, Users, Award, BarChart3, Filter, Calendar, Plus, CalendarDays } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { getAllEventsAdmin } from '@/utils/api';
 import { Trophy, Star, Cherry } from 'lucide-react-native';
@@ -31,11 +31,11 @@ export default function FacultyDashboard() {
     pointsAllocated: 0,
     berriesAllocated: 0
   });
-  
+
   const students = mockUsers.filter(user => user.role === 'student') as Student[];
   const totalPoints = students.reduce((sum, student) => sum + student.totalPoints, 0);
   const avgPoints = Math.round(totalPoints / students.length);
-  
+
   const recentTransactions = mockTransactions
     .filter(t => t.type === 'earned')
     .slice(0, 10);
@@ -54,12 +54,12 @@ export default function FacultyDashboard() {
       try {
         // Fetch all events created by faculty
         const events = await getAllEventsAdmin();
-        
+
         // Calculate statistics
         const totalBounties = events.length;
         const pointsAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_points) || 0), 0);
         const berriesAllocated = events.reduce((sum: number, event: any) => sum + (parseInt(event.alloted_berries) || 0), 0);
-        
+
         setFacultyStats({
           totalBounties,
           pointsAllocated,
@@ -81,13 +81,13 @@ export default function FacultyDashboard() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Analytics Dashboard"
         subtitle="Student performance insights"
         showBackButton={true}
       />
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -133,7 +133,7 @@ export default function FacultyDashboard() {
                 </Text>
               </View>
             </AnimatedCard>
-            
+
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.accent + '20' }]}>
@@ -147,7 +147,7 @@ export default function FacultyDashboard() {
                 </Text>
               </View>
             </AnimatedCard>
-            
+
             <AnimatedCard style={styles.statCard}>
               <View style={styles.statContent}>
                 <View style={[styles.statIcon, { backgroundColor: theme.colors.success + '20' }]}>
@@ -250,8 +250,8 @@ export default function FacultyDashboard() {
                   style={[
                     styles.filterButton,
                     {
-                      backgroundColor: selectedFilter === filter 
-                        ? theme.colors.primary 
+                      backgroundColor: selectedFilter === filter
+                        ? theme.colors.primary
                         : theme.colors.surface,
                       borderColor: theme.colors.border,
                     }
@@ -260,10 +260,10 @@ export default function FacultyDashboard() {
                 >
                   <Text style={[
                     styles.filterButtonText,
-                    { 
-                      color: selectedFilter === filter 
-                        ? '#FFFFFF' 
-                        : theme.colors.textSecondary 
+                    {
+                      color: selectedFilter === filter
+                        ? '#FFFFFF'
+                        : theme.colors.textSecondary
                     }
                   ]}>
                     {filter}
@@ -279,7 +279,7 @@ export default function FacultyDashboard() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Recent Point Awards
           </Text>
-          
+
           <View style={styles.transactionsList}>
             {recentTransactions.map((transaction) => (
               <AnimatedCard key={transaction.id} style={styles.transactionCard}>
@@ -292,25 +292,25 @@ export default function FacultyDashboard() {
                   </View>
                   <View style={styles.transactionInfo}>
                     <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
-                      {transaction.description}
+                      {transaction.reason}
                     </Text>
                     <View style={styles.transactionMeta}>
                       <Calendar size={12} color={theme.colors.textSecondary} />
                       <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
                         {new Date(transaction.date).toLocaleDateString()}
                       </Text>
-                      {transaction.category && (
+                      {transaction.type === 'earned' && (
                         <>
                           <Text style={[styles.separator, { color: theme.colors.textSecondary }]}>•</Text>
                           <Text style={[styles.transactionCategory, { color: theme.colors.textSecondary }]}>
-                            {transaction.category}
+                            {transaction.type}
                           </Text>
                         </>
                       )}
                     </View>
                   </View>
                   <Text style={[styles.transactionPoints, { color: theme.colors.success }]}>
-                    +{transaction.points}
+                    +{transaction.amount}
                   </Text>
                 </View>
               </AnimatedCard>
@@ -323,7 +323,7 @@ export default function FacultyDashboard() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Top Performers
           </Text>
-          
+
           <View style={styles.performersList}>
             {students
               .sort((a, b) => b.totalPoints - a.totalPoints)

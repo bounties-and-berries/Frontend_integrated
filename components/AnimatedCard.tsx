@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { TouchableOpacity, ViewStyle, Text } from 'react-native';
+import { TouchableOpacity, ViewStyle, Text, StyleProp } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import Animated, {
   useSharedValue,
@@ -11,17 +11,17 @@ import Animated, {
 
 interface AnimatedCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   disabled?: boolean;
   delay?: number; // Added delay prop for staggered animations
   skipEntranceAnimation?: boolean; // Added prop to skip entrance animation
 }
 
-export default function AnimatedCard({ 
-  children, 
-  style, 
-  onPress, 
+export default function AnimatedCard({
+  children,
+  style,
+  onPress,
   disabled = false,
   delay = 0,
   skipEntranceAnimation = false

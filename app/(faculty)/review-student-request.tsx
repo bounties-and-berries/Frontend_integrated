@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
@@ -8,14 +9,13 @@ import {
   Alert,
   Dimensions,
   TextInput,
-  Modal,
-  Image,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { CircleCheck as CheckCircle, Circle as XCircle, Calendar, User, Star, Eye, FileText, MapPin, X } from 'lucide-react-native';
+import { CheckCircle, Circle as XCircle, Calendar, User, Star, Eye, FileText, MapPin, X } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,7 +39,7 @@ export default function ReviewStudentRequest() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Student request data from navigation params
   const requestId = params.requestId as string || '0';
   const studentName = params.studentName as string || 'Unknown Student';
@@ -53,11 +53,11 @@ export default function ReviewStudentRequest() {
   const date = params.date as string || '';
   const proofUrl = params.proofUrl as string || '';
   const activityType = params.activityType as string || 'General Activity';
-  
+
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProofModalVisible, setIsProofModalVisible] = useState(false);
-  
+
   // Handle approval
   const handleApprove = () => {
     Alert.alert(
@@ -65,8 +65,8 @@ export default function ReviewStudentRequest() {
       `Are you sure you want to approve "${title}" and allocate ${points} points to ${studentName}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Approve', 
+        {
+          text: 'Approve',
           onPress: () => {
             setIsSubmitting(true);
             // In a real app, this would submit to the backend
@@ -99,8 +99,8 @@ export default function ReviewStudentRequest() {
       'Are you sure you want to reject this request?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reject', 
+        {
+          text: 'Reject',
           style: 'destructive',
           onPress: () => {
             setIsSubmitting(true);
@@ -143,13 +143,13 @@ export default function ReviewStudentRequest() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Review Request"
         showBackButton={true}
         onBackPress={() => router.back()}
       />
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
       >
@@ -161,7 +161,7 @@ export default function ReviewStudentRequest() {
           <Text style={[styles.requestDescription, { color: theme.colors.textSecondary }]}>
             {description}
           </Text>
-          
+
           <View style={styles.requestMeta}>
             <View style={styles.metaItem}>
               <Calendar size={16} color={theme.colors.textSecondary} />
@@ -197,7 +197,7 @@ export default function ReviewStudentRequest() {
           <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>
             Student Information
           </Text>
-          
+
           <View style={styles.studentInfo}>
             <View style={styles.studentInfoRow}>
               <User size={16} color={theme.colors.textSecondary} />
@@ -237,9 +237,9 @@ export default function ReviewStudentRequest() {
           <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>
             Supporting Documents
           </Text>
-          
+
           {proofUrl ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.viewProofButton, { backgroundColor: theme.colors.surface }]}
               onPress={handleViewProof}
             >
@@ -263,11 +263,11 @@ export default function ReviewStudentRequest() {
           <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
             Provide a reason for rejection to help the student understand
           </Text>
-          
+
           <TextInput
             style={[
               styles.rejectionInput,
-              { 
+              {
                 backgroundColor: theme.colors.surface,
                 color: theme.colors.text,
                 borderColor: theme.colors.border,
@@ -294,7 +294,7 @@ export default function ReviewStudentRequest() {
             <XCircle size={18} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Reject</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.approveButton, { backgroundColor: theme.colors.success }]}
             onPress={handleApprove}
@@ -323,7 +323,7 @@ export default function ReviewStudentRequest() {
                 <X size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.proofContainer}>
               {proofUrl ? (
                 proofUrl.endsWith('.pdf') ? (
@@ -337,8 +337,8 @@ export default function ReviewStudentRequest() {
                     </Text>
                   </View>
                 ) : (
-                  <Image 
-                    source={{ uri: proofUrl }} 
+                  <Image
+                    source={{ uri: proofUrl }}
                     style={styles.proofImage}
                     resizeMode="contain"
                   />
@@ -349,9 +349,9 @@ export default function ReviewStudentRequest() {
                 </Text>
               )}
             </ScrollView>
-            
+
             <View style={styles.modalActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
                 onPress={closeProofModal}
               >

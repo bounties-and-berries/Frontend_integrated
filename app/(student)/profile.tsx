@@ -1,12 +1,12 @@
+import { Image } from 'expo-image';
 import React from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  Dimensions,
+  Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -16,13 +16,13 @@ import { Student } from '@/types';
 import { mockBadges, mockAchievements } from '@/data/mockData';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
-import { 
-  Trophy, 
-  Star, 
-  Calendar, 
-  Award, 
-  TrendingUp, 
-  Eye, 
+import {
+  Trophy,
+  Star,
+  Calendar,
+  Award,
+  TrendingUp,
+  Eye,
   Settings,
   User
 } from 'lucide-react-native';
@@ -42,14 +42,15 @@ export default function StudentProfile() {
     router.push('/public');
   };
 
+
   return (
-    <ScrollView 
+    <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => router.push('/(student)/settings')}
         >
@@ -63,7 +64,7 @@ export default function StudentProfile() {
           <View style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <Image
-                source={{ uri: student?.profileImage }}
+                source={student?.profileImage ? { uri: student.profileImage } : require('@/assets/images/default-avatar.png')}
                 style={styles.profileImage}
               />
               <View style={styles.profileInfo}>
@@ -74,7 +75,7 @@ export default function StudentProfile() {
                 <Text style={styles.profileEmail}>{student?.email}</Text>
               </View>
             </View>
-            
+
             <View style={styles.profileStats}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{student?.totalPoints}</Text>
@@ -100,7 +101,7 @@ export default function StudentProfile() {
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Progress Analytics
         </Text>
-        
+
         <View style={styles.analyticsGrid}>
           <AnimatedCard style={styles.analyticsCard}>
             <View style={styles.analyticsContent}>
@@ -118,7 +119,7 @@ export default function StudentProfile() {
               </View>
             </View>
           </AnimatedCard>
-          
+
           <AnimatedCard style={styles.analyticsCard}>
             <View style={styles.analyticsContent}>
               <View style={styles.analyticsHeader}>
@@ -148,7 +149,7 @@ export default function StudentProfile() {
             {recentBadges.length} earned
           </Text>
         </View>
-        
+
         <View style={styles.badgesGrid}>
           {recentBadges.map((badge) => (
             <AnimatedCard key={badge.id} style={styles.badgeCard}>
@@ -160,7 +161,7 @@ export default function StudentProfile() {
                   {badge.name}
                 </Text>
                 <Text style={[styles.badgeDate, { color: theme.colors.textSecondary }]}>
-                  {new Date(badge.earnedAt).toLocaleDateString()}
+                  {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'N/A'}
                 </Text>
               </View>
             </AnimatedCard>
@@ -173,13 +174,13 @@ export default function StudentProfile() {
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Recent Achievements
         </Text>
-        
+
         <View style={styles.achievementsList}>
           {approvedAchievements.slice(0, 3).map((achievement) => (
             <AnimatedCard key={achievement.id} style={styles.achievementCard}>
               <View style={styles.achievementContent}>
                 <View style={[
-                  styles.achievementIcon, 
+                  styles.achievementIcon,
                   { backgroundColor: theme.colors.success + '20' }
                 ]}>
                   <Star size={20} color={theme.colors.success} />

@@ -22,7 +22,7 @@ export default function CreateEvent() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
+
   const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
@@ -75,7 +75,7 @@ export default function CreateEvent() {
 
   const handleSubmit = async () => {
     setCreateError('');
-    
+
     if (!validateForm()) {
       return;
     }
@@ -88,10 +88,6 @@ export default function CreateEvent() {
 
     setCreateLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('title', createForm.title.trim());
-      formData.append('description', createForm.description.trim());
-      
       // Combine date and time
       let dateTime: string;
       if (createForm.time && createForm.date) {
@@ -103,28 +99,31 @@ export default function CreateEvent() {
       } else {
         dateTime = new Date().toISOString();
       }
-      formData.append('date', dateTime);
-      
-      formData.append('venue', createForm.venue.trim());
-      formData.append('points', createForm.points);
-      formData.append('berries', createForm.berries || '0');
-      formData.append('capacity', createForm.capacity);
-      formData.append('type', createForm.type);
-      
-      if (createForm.image) formData.append('image', createForm.image);
-      
-      const result = await createEvent(formData);
-      
-      Alert.alert(
-        'Success', 
-        'Event created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
-      );
+
+      // Pass a plain object — createEvent in api.ts wraps it in FormData internally
+      const eventData: Record<string, any> = {
+        name: createForm.title.trim(),
+        description: createForm.description.trim(),
+        scheduled_date: dateTime,
+        venue: createForm.venue.trim(),
+        alloted_points: createForm.points,
+        alloted_berries: createForm.berries || '0',
+        capacity: createForm.capacity,
+        type: createForm.type,
+      };
+
+      await createEvent(eventData, createForm.image as any);
+
+      if (Platform.OS === 'web') {
+        window.alert('Event created successfully!');
+        router.back();
+      } else {
+        Alert.alert(
+          'Success',
+          'Event created successfully!',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
     } catch (err: any) {
       console.error('Create event error:', err);
       setCreateError(err.message || 'Failed to create event');
@@ -143,53 +142,53 @@ export default function CreateEvent() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Create Event"
         subtitle="Create a new college event"
         showBackButton={true}
       />
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <ScrollView 
-          style={styles.formContainer} 
+        <ScrollView
+          style={styles.formContainer}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ 
-            paddingBottom: Math.max(insets.bottom + 100, 120) 
+          contentContainerStyle={{
+            paddingBottom: Math.max(insets.bottom + 100, 120)
           }}
         >
           <View style={styles.formGroup}>
             <Text style={[styles.formLabel, { color: theme.colors.text }]}>Event Title *</Text>
-            <TextInput 
+            <TextInput
               placeholder="Enter event title"
               placeholderTextColor={theme.colors.textSecondary}
-              value={createForm.title} 
-              onChangeText={v => handleFormChange('title', v)} 
-              style={[styles.formInput, { 
+              value={createForm.title}
+              onChangeText={v => handleFormChange('title', v)}
+              style={[styles.formInput, {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
-              }]} 
+              }]}
             />
           </View>
 
           <View style={styles.formGroup}>
             <Text style={[styles.formLabel, { color: theme.colors.text }]}>Description *</Text>
-            <TextInput 
+            <TextInput
               placeholder="Enter event description"
               placeholderTextColor={theme.colors.textSecondary}
-              value={createForm.description} 
-              onChangeText={v => handleFormChange('description', v)} 
-              style={[styles.formInput, styles.textArea, { 
+              value={createForm.description}
+              onChangeText={v => handleFormChange('description', v)}
+              style={[styles.formInput, styles.textArea, {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
-              }]} 
-              multiline 
-              numberOfLines={3} 
+              }]}
+              multiline
+              numberOfLines={3}
             />
           </View>
 
@@ -240,65 +239,65 @@ export default function CreateEvent() {
 
           <View style={styles.formGroup}>
             <Text style={[styles.formLabel, { color: theme.colors.text }]}>Venue *</Text>
-            <TextInput 
+            <TextInput
               placeholder="Enter event venue"
               placeholderTextColor={theme.colors.textSecondary}
-              value={createForm.venue} 
-              onChangeText={v => handleFormChange('venue', v)} 
-              style={[styles.formInput, { 
+              value={createForm.venue}
+              onChangeText={v => handleFormChange('venue', v)}
+              style={[styles.formInput, {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
-              }]} 
+              }]}
             />
           </View>
 
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1 }]}>
               <Text style={[styles.formLabel, { color: theme.colors.text }]}>Points Reward *</Text>
-              <TextInput 
+              <TextInput
                 placeholder="100"
                 placeholderTextColor={theme.colors.textSecondary}
-                value={createForm.points} 
-                onChangeText={v => handleFormChange('points', v)} 
-                style={[styles.formInput, { 
+                value={createForm.points}
+                onChangeText={v => handleFormChange('points', v)}
+                style={[styles.formInput, {
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
                   color: theme.colors.text
-                }]} 
-                keyboardType="numeric" 
+                }]}
+                keyboardType="numeric"
               />
             </View>
             <View style={[styles.formGroup, { flex: 1 }]}>
               <Text style={[styles.formLabel, { color: theme.colors.text }]}>Berries Reward (Optional)</Text>
-              <TextInput 
+              <TextInput
                 placeholder="50"
                 placeholderTextColor={theme.colors.textSecondary}
-                value={createForm.berries} 
-                onChangeText={v => handleFormChange('berries', v)} 
-                style={[styles.formInput, { 
+                value={createForm.berries}
+                onChangeText={v => handleFormChange('berries', v)}
+                style={[styles.formInput, {
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
                   color: theme.colors.text
-                }]} 
-                keyboardType="numeric" 
+                }]}
+                keyboardType="numeric"
               />
             </View>
           </View>
 
           <View style={styles.formGroup}>
             <Text style={[styles.formLabel, { color: theme.colors.text }]}>Capacity *</Text>
-            <TextInput 
+            <TextInput
               placeholder="50"
               placeholderTextColor={theme.colors.textSecondary}
-              value={createForm.capacity} 
-              onChangeText={v => handleFormChange('capacity', v)} 
-              style={[styles.formInput, { 
+              value={createForm.capacity}
+              onChangeText={v => handleFormChange('capacity', v)}
+              style={[styles.formInput, {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
-              }]} 
-              keyboardType="numeric" 
+              }]}
+              keyboardType="numeric"
             />
           </View>
 
@@ -311,8 +310,8 @@ export default function CreateEvent() {
                   style={[
                     styles.typeButton,
                     {
-                      backgroundColor: createForm.type === type 
-                        ? theme.colors.primary 
+                      backgroundColor: createForm.type === type
+                        ? theme.colors.primary
                         : theme.colors.surface,
                       borderColor: theme.colors.border,
                     }
@@ -321,10 +320,10 @@ export default function CreateEvent() {
                 >
                   <Text style={[
                     styles.typeButtonText,
-                    { 
-                      color: createForm.type === type 
-                        ? '#FFFFFF' 
-                        : theme.colors.textSecondary 
+                    {
+                      color: createForm.type === type
+                        ? '#FFFFFF'
+                        : theme.colors.textSecondary
                     }
                   ]}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -355,24 +354,24 @@ export default function CreateEvent() {
           ) : null}
         </ScrollView>
 
-        <View style={[styles.actionsContainer, { 
+        <View style={[styles.actionsContainer, {
           backgroundColor: theme.colors.card,
           borderTopColor: theme.colors.border,
           paddingBottom: Math.max(insets.bottom + 16, 32)
         }]}>
-          <TouchableOpacity 
-            onPress={handleCancel} 
-            style={[styles.actionButton, styles.cancelButton, { 
-              backgroundColor: theme.colors.surface, 
-              borderColor: theme.colors.border 
+          <TouchableOpacity
+            onPress={handleCancel}
+            style={[styles.actionButton, styles.cancelButton, {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border
             }]}
             activeOpacity={0.7}
           >
             <Text style={[styles.actionButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleSubmit} 
-            style={[styles.actionButton, styles.submitButton, { backgroundColor: theme.colors.primary }]} 
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={[styles.actionButton, styles.submitButton, { backgroundColor: theme.colors.primary }]}
             disabled={createLoading}
             activeOpacity={0.8}
           >
@@ -437,6 +436,7 @@ const styles = StyleSheet.create({
   typeButtonText: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
+    marginTop: 0,
   },
   errorContainer: {
     marginTop: 8,

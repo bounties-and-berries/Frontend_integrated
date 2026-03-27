@@ -1,0 +1,103 @@
+
+> student-engagement-platform@1.0.0 dev
+> expo start
+
+env: load .env.development
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_ENV
+Starting project at /Users/amoghk/Downloads/B and B/Frontend_integrated
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 516ms node_modules/expo-router/entry.js (2494 modules)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 58ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web Bundled 56ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 56ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/app/(admin)/_layout.tsx: Identifier 'isWide' has already been declared. (15:8)
+
+  13 |   const tabHeight = isMobile ? 65 + insets.bottom : 75;
+  14 |
+> 15 |   const isWide = width > 768;
+     |         ^
+  16 |   const tabHeight = isMobile ? (70 + insets.bottom) : 80;
+  17 |
+  18 |   return (
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/components/TopMenuBar.tsx: Unexpected token (445:0)
+
+  443 |   },
+  444 | });
+> 445 | );
+      | ^
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/components/TopMenuBar.tsx: Unexpected token (446:0)
+
+  444 |   },
+  445 | });
+> 446 | );
+      | ^
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/components/TopMenuBar.tsx: Unexpected token, expected "jsxTagEnd" (409:17)
+
+  407 |           </View>
+  408 |         </View>
+> 409 |       </Modal    </>
+      |                  ^
+  410 |   );
+  411 | }
+  412 |
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/components/TopMenuBar.tsx: Unexpected token, expected "jsxTagEnd" (408:20)
+
+  406 |             </ScrollView>
+  407 |           </View>
+> 408 |         </View      </Modal>
+      |                     ^
+  409 |     </>
+  410 |   );
+  411 | }
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/components/TopMenuBar.tsx: Unexpected token, expected "jsxTagEnd" (406:34)
+
+  404 |                 </TouchableOpacity>
+  405 |               ))}
+> 406 |             </ScrollView          </View>
+      |                                   ^
+  407 |         </View>
+  408 |       </Modal>
+  409 |     </>
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 57ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 61ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/build/index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 180ms node_modules/expo-router/build/index.js (412 modules)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 57ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web Bundled 11ms node_modules/expo-router/build/index.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 54ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web Bundled 13ms node_modules/expo-router/build/index.js (1 module)
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/app/login.tsx: Unexpected token (96:6)
+
+  94 |             router.replace('/(student)');
+  95 |         }
+> 96 |     } catch (error: any) {
+     |       ^
+  97 |       console.log('Login failed with error:', error);
+  98 |       const message = error.message || (error.response?.data?.message) || 'Login failed. Please try again.';
+  99 |       setErrorMsg(message);
+ ERROR  SyntaxError: /Users/amoghk/Downloads/B and B/Frontend_integrated/app/login.tsx: Unexpected token (96:6)
+
+  94 |             router.replace('/(student)');
+  95 |         }
+> 96 |     } catch (error: any) {
+     |       ^
+  97 |       console.log('Login failed with error:', error);
+  98 |       const message = error.message || (error.response?.data?.message) || 'Login failed. Please try again.';
+  99 |       setErrorMsg(message);

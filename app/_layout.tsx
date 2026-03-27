@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useFonts } from 'expo-font';
 import {
   Inter_400Regular,
@@ -18,9 +20,59 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  },
+});
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+// Protected route wrapper
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(student)' || segments[0] === '(faculty)' || segments[0] === '(admin)';
+    const inLogin = segments[0] === 'login';
+    const inPublic = segments[0] === 'public';
+
+    // If not logged in and trying to access protected routes, redirect to login
+    if (!user && inAuthGroup) {
+      router.replace('/login');
+    }
+    // If logged in and on login page, redirect to appropriate dashboard
+    else if (user && (inLogin || inPublic)) {
+      const role = user.role;
+      switch (role) {
+        case 'student':
+          router.replace('/(student)');
+          break;
+        case 'faculty':
+          router.replace('/(faculty)' as any);
+          break;
+        case 'admin':
+          router.replace('/(admin)');
+          break;
+        default:
+          router.replace('/(student)');
+      }
+    }
+  }, [user, isLoading, segments]);
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -47,25 +99,33 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Stack screenOptions={{ 
-          headerShown: false,
-          animation: 'slide_from_right',
-          animationDuration: 350,
-          animationTypeForReplace: 'push',
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-        }}>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="(student)" />
-          <Stack.Screen name="(faculty)" />
-          <Stack.Screen name="(admin)" />
-          <Stack.Screen name="public" />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <ProtectedRoute>
+                <Stack screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                  animationDuration: 350,
+                  animationTypeForReplace: 'push',
+                  gestureEnabled: true,
+                  gestureDirection: 'horizontal',
+                }}>
+                  <Stack.Screen name="login" />
+                  <Stack.Screen name="(student)" />
+                  <Stack.Screen name="(faculty)" />
+                  <Stack.Screen name="(admin)" />
+                  <Stack.Screen name="public" />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" />
+              </ProtectedRoute>
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

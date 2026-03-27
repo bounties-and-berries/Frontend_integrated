@@ -1,12 +1,12 @@
+import { Image } from 'expo-image';
 import React from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  Alert,
+  Alert
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -115,7 +115,7 @@ export default function UserDetails() {
           <AnimatedCard style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <Image
-                source={{ uri: user.profileImage }}
+                source={user?.profileImage ? { uri: user.profileImage } : require('@/assets/images/default-avatar.png')}
                 style={styles.profileImage}
               />
               <View style={styles.profileInfo}>

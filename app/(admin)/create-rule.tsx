@@ -12,7 +12,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
+import { createRule } from '@/utils/api';
 import { Plus, Award, Calendar, Users, BookOpen, Trophy } from 'lucide-react-native';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const categories = [
   { id: 'academic', label: 'Academic Achievement', icon: BookOpen, color: '#6366F1' },
@@ -34,34 +36,60 @@ export default function CreateRule() {
     maxPerDay: '',
     maxPerMonth: '',
   });
+  const [loading, setLoading] = useState(false);
+  const { isMobile } = useResponsive();
 
-  const handleSubmit = () => {
+  const styles = getStyles(theme, isMobile);
+
+  const handleSubmit = async () => {
     if (!formData.activity || !formData.category || !formData.berries || !formData.description) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    Alert.alert(
-      'Create Rule',
-      'Are you sure you want to create this berry rule?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Create', 
-          onPress: () => {
-            Alert.alert('Success', 'Berry rule created successfully!');
-            router.back();
-          }
-        }
-      ]
-    );
+    // Validate berries is a positive number
+    const berriesValue = parseInt(formData.berries);
+    if (isNaN(berriesValue) || berriesValue <= 0) {
+      Alert.alert('Error', 'Please enter a valid number of berries (greater than 0)');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const ruleData = {
+        name: formData.activity,
+        category: formData.category,
+        points: berriesValue,
+        description: formData.description,
+        max_per_day: formData.maxPerDay ? parseInt(formData.maxPerDay) : null,
+        max_per_semester: formData.maxPerMonth ? parseInt(formData.maxPerMonth) : null,
+      };
+
+      // Log the data being sent for debugging
+      console.log('Sending rule data:', ruleData);
+
+      const result = await createRule(ruleData);
+      console.log('Rule creation result:', result);
+
+      Alert.alert(
+        'Success',
+        'Berry rule created successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (error: any) {
+      console.error('Error creating rule:', error);
+      Alert.alert('Error', error.message || 'Failed to create berry rule. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedCategory = categories.find(cat => cat.id === formData.category);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Create Berry Rule"
         subtitle="Set up new berry allocation rules"
       />
@@ -78,15 +106,15 @@ export default function CreateRule() {
               Activity Name *
             </Text>
             <TextInput
-              style={[styles.input, { 
+              style={[styles.input, {
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
-                color: theme.colors.text 
+                color: theme.colors.text
               }]}
               placeholder="Enter activity name"
               placeholderTextColor={theme.colors.textSecondary}
               value={formData.activity}
-              onChangeText={(text) => setFormData({...formData, activity: text})}
+              onChangeText={(text) => setFormData({ ...formData, activity: text })}
             />
           </View>
 
@@ -103,26 +131,26 @@ export default function CreateRule() {
                     style={[
                       styles.categoryCard,
                       {
-                        backgroundColor: formData.category === category.id 
-                          ? category.color + '20' 
+                        backgroundColor: formData.category === category.id
+                          ? category.color + '20'
                           : theme.colors.card,
-                        borderColor: formData.category === category.id 
-                          ? category.color 
+                        borderColor: formData.category === category.id
+                          ? category.color
                           : theme.colors.border,
                       }
                     ]}
-                    onPress={() => setFormData({...formData, category: category.id})}
+                    onPress={() => setFormData({ ...formData, category: category.id })}
                   >
-                    <IconComponent 
-                      size={20} 
-                      color={formData.category === category.id ? category.color : theme.colors.textSecondary} 
+                    <IconComponent
+                      size={20}
+                      color={formData.category === category.id ? category.color : theme.colors.textSecondary}
                     />
                     <Text style={[
                       styles.categoryLabel,
-                      { 
-                        color: formData.category === category.id 
-                          ? category.color 
-                          : theme.colors.text 
+                      {
+                        color: formData.category === category.id
+                          ? category.color
+                          : theme.colors.text
                       }
                     ]}>
                       {category.label}
@@ -138,16 +166,16 @@ export default function CreateRule() {
               Berries Reward *
             </Text>
             <TextInput
-              style={[styles.input, { 
+              style={[styles.input, {
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
-                color: theme.colors.text 
+                color: theme.colors.text
               }]}
               placeholder="Enter berries amount"
               placeholderTextColor={theme.colors.textSecondary}
               keyboardType="numeric"
               value={formData.berries}
-              onChangeText={(text) => setFormData({...formData, berries: text})}
+              onChangeText={(text) => setFormData({ ...formData, berries: text })}
             />
           </View>
 
@@ -156,17 +184,17 @@ export default function CreateRule() {
               Description *
             </Text>
             <TextInput
-              style={[styles.textArea, { 
+              style={[styles.textArea, {
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
-                color: theme.colors.text 
+                color: theme.colors.text
               }]}
               placeholder="Describe the activity and requirements..."
               placeholderTextColor={theme.colors.textSecondary}
               multiline
               numberOfLines={4}
               value={formData.description}
-              onChangeText={(text) => setFormData({...formData, description: text})}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
             />
           </View>
         </View>
@@ -182,16 +210,16 @@ export default function CreateRule() {
               Maximum Per Day
             </Text>
             <TextInput
-              style={[styles.input, { 
+              style={[styles.input, {
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
-                color: theme.colors.text 
+                color: theme.colors.text
               }]}
               placeholder="Enter daily limit (optional)"
               placeholderTextColor={theme.colors.textSecondary}
               keyboardType="numeric"
               value={formData.maxPerDay}
-              onChangeText={(text) => setFormData({...formData, maxPerDay: text})}
+              onChangeText={(text) => setFormData({ ...formData, maxPerDay: text })}
             />
           </View>
 
@@ -200,16 +228,16 @@ export default function CreateRule() {
               Maximum Per Month
             </Text>
             <TextInput
-              style={[styles.input, { 
+              style={[styles.input, {
                 backgroundColor: theme.colors.card,
                 borderColor: theme.colors.border,
-                color: theme.colors.text 
+                color: theme.colors.text
               }]}
               placeholder="Enter monthly limit (optional)"
               placeholderTextColor={theme.colors.textSecondary}
               keyboardType="numeric"
               value={formData.maxPerMonth}
-              onChangeText={(text) => setFormData({...formData, maxPerMonth: text})}
+              onChangeText={(text) => setFormData({ ...formData, maxPerMonth: text })}
             />
           </View>
         </View>
@@ -220,7 +248,7 @@ export default function CreateRule() {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Rule Preview
             </Text>
-            
+
             <AnimatedCard style={styles.previewCard}>
               <View style={styles.previewContent}>
                 <View style={styles.previewHeader}>
@@ -249,13 +277,13 @@ export default function CreateRule() {
                     </Text>
                   </View>
                 </View>
-                
+
                 {formData.description && (
                   <Text style={[styles.previewDescription, { color: theme.colors.textSecondary }]}>
                     {formData.description}
                   </Text>
                 )}
-                
+
                 {(formData.maxPerDay || formData.maxPerMonth) && (
                   <View style={styles.previewLimits}>
                     {formData.maxPerDay && (
@@ -280,9 +308,12 @@ export default function CreateRule() {
           <TouchableOpacity
             style={[styles.submitButton, { backgroundColor: theme.colors.primary }]}
             onPress={handleSubmit}
+            disabled={loading}
           >
             <Plus size={20} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>Create Berry Rule</Text>
+            <Text style={styles.submitButtonText}>
+              {loading ? 'Creating...' : 'Create Berry Rule'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -290,15 +321,15 @@ export default function CreateRule() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   content: {
     flex: 1,
+    padding: 20,
   },
   section: {
-    paddingHorizontal: 20,
     marginBottom: 24,
   },
   sectionTitle: {
@@ -321,6 +352,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
+    minHeight: 44,
   },
   textArea: {
     paddingHorizontal: 16,
@@ -330,6 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Regular',
     textAlignVertical: 'top',
+    minHeight: 100,
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -337,13 +370,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryCard: {
-    width: '48%',
+    width: isMobile ? '100%' : '48%',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     gap: 8,
+    minHeight: 44,
   },
   categoryLabel: {
     fontSize: 12,
@@ -411,6 +445,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
+    minHeight: 44,
   },
   submitButtonText: {
     color: '#FFFFFF',

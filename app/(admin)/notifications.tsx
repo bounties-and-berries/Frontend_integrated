@@ -9,7 +9,8 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { mockNotifications } from '@/data/mockData';
 import AnimatedCard from '@/components/AnimatedCard';
-import { Bell, CircleCheck as CheckCircle, Info, TriangleAlert as AlertTriangle, Circle as XCircle, Clock } from 'lucide-react-native';
+import { Bell, CheckCircle, Info, AlertTriangle, Circle as XCircle, Clock } from 'lucide-react-native';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -42,6 +43,9 @@ export default function AdminNotifications() {
   const [notifications, setNotifications] = useState(
     mockNotifications.filter(n => n.userId === '3')
   );
+  const { isMobile } = useResponsive();
+
+  const styles = getStyles(theme, isMobile);
 
   const markAsRead = (notificationId: string) => {
     setNotifications(prev =>
@@ -84,7 +88,7 @@ export default function AdminNotifications() {
       </View>
 
       {/* Notifications List */}
-      <ScrollView 
+      <ScrollView
         style={styles.notificationsList}
         showsVerticalScrollIndicator={false}
       >
@@ -105,15 +109,15 @@ export default function AdminNotifications() {
             notifications.map((notification) => {
               const IconComponent = getNotificationIcon(notification.type);
               const iconColor = getNotificationColor(notification.type, theme);
-              
+
               return (
-                <AnimatedCard 
-                  key={notification.id} 
+                <AnimatedCard
+                  key={notification.id}
                   style={[
                     styles.notificationCard,
-                    { 
-                      backgroundColor: notification.read 
-                        ? theme.colors.card 
+                    {
+                      backgroundColor: notification.read
+                        ? theme.colors.card
                         : theme.colors.primary + '05',
                       borderColor: notification.read
                         ? theme.colors.border
@@ -130,12 +134,12 @@ export default function AdminNotifications() {
                     ]}>
                       <IconComponent size={20} color={iconColor} />
                     </View>
-                    
+
                     <View style={styles.notificationInfo}>
                       <View style={styles.notificationHeader}>
                         <Text style={[
-                          styles.notificationTitle, 
-                          { 
+                          styles.notificationTitle,
+                          {
                             color: theme.colors.text,
                             fontFamily: notification.read ? 'Inter-Medium' : 'Inter-SemiBold'
                           }
@@ -146,14 +150,14 @@ export default function AdminNotifications() {
                           <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />
                         )}
                       </View>
-                      
+
                       <Text style={[
-                        styles.notificationMessage, 
+                        styles.notificationMessage,
                         { color: theme.colors.textSecondary }
                       ]} numberOfLines={3}>
                         {notification.message}
                       </Text>
-                      
+
                       <View style={styles.notificationMeta}>
                         <Clock size={12} color={theme.colors.textSecondary} />
                         <Text style={[styles.notificationDate, { color: theme.colors.textSecondary }]}>
@@ -172,12 +176,12 @@ export default function AdminNotifications() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: isMobile ? 40 : 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
     flexDirection: 'row',
@@ -185,18 +189,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   title: {
-    fontSize: 28,
+    fontSize: isMobile ? 24 : 28,
     fontFamily: 'Poppins-Bold',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontFamily: 'Inter-Regular',
   },
   markAllButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+    minHeight: 44,
   },
   markAllButtonText: {
     color: '#FFFFFF',

@@ -1,16 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Student, Faculty, Admin } from '@/types';
-import { mockUsers } from '@/data/mockData';
+import { User } from '@/types';
 import { jwtDecode } from 'jwt-decode';
-import { loginApi, getUserAvailableBerries } from '@/utils/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginApi, logoutApi, fetchCurrentUser, BASE_URL } from '@/utils/api';
+import { secureGet, secureSet, secureDelete } from '@/utils/secureStorage';
+import { clearAuthData } from '@/utils/authMiddleware';
+import { router } from 'expo-router';
+import { Alert, Platform } from 'react-native';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: string) => Promise<boolean>;
-  logout: () => void;
+  login: (username: string, password: string, role: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   isLoading: boolean;
-  refreshUserBerries: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,69 +21,130 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Restore session from secure storage on app start
   useEffect(() => {
-    // Simulate checking for existing session
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
+    checkExistingSession();
   }, []);
 
-  const login = async (name: string, password: string, role: string): Promise<boolean> => {
-    setIsLoading(true);
+  const checkExistingSession = async () => {
     try {
-      const data = await loginApi(name, password, role);
-      const { token } = data;
-      // Store token using AsyncStorage for React Native
-      await AsyncStorage.setItem('token', token);
-      // Decode token to get user info
-      const decoded: any = jwtDecode(token);
-      
-      // For students, fetch the correct available berries
-      let totalPoints = 0;
-      if (decoded.role === 'student') {
+      const token = await secureGet('token');
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        
+        // Initial user state from token
+        const initialUser: User = {
+          id: decoded.id,
+          name: decoded.name,
+          email: decoded.email || '',
+          role: decoded.role,
+          createdAt: '',
+        };
+        setUser(initialUser);
+
+        // Fetch full profile (including image) from backend
         try {
-          const berriesData = await getUserAvailableBerries();
-          totalPoints = berriesData.availableBerries || 0;
-        } catch (error) {
-          console.warn('Failed to fetch available berries, using default value');
-          totalPoints = 0;
+          const result = await fetchCurrentUser();
+          const userData = result.data || result;
+          const imgUrl = userData.img_url
+            ? (userData.img_url.startsWith('http') 
+              ? userData.img_url 
+              : `${BASE_URL}${userData.img_url.split('/').map((s: string) => encodeURIComponent(s)).join('/')}?t=${Date.now()}`)
+            : undefined;
+          
+          setUser(prev => prev ? {
+            ...prev,
+            name: userData.name || prev.name,
+            email: userData.email || prev.email,
+            profileImage: imgUrl,
+          } : null);
+        } catch {
+          // Profile fetch failed; token data is still useful
         }
       }
-      
+    } catch (error) {
+      console.error('Error checking existing session:', error);
+      await secureDelete('token');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (username: string, password: string, role: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const data = await loginApi(username, password, role);
+      const { token } = data;
+
+      await secureSet('token', token);
+      const decoded: any = jwtDecode(token);
+
       setUser({
         id: decoded.id,
         name: decoded.name,
-        email: decoded.email || '', // TODO: fetch user profile for full info
+        email: decoded.email || '',
         role: decoded.role,
-        createdAt: '', // TODO: fetch user profile for full info
-        ...(decoded.role === 'student' && { totalPoints }),
+        createdAt: '',
       });
+      
+      // Fetch full profile info
+      await refreshUser();
+      
       setIsLoading(false);
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login error:', error);
       setIsLoading(false);
-      return false;
+      throw error; // Throw the actual error so UI can display specific message
     }
   };
 
-  const refreshUserBerries = async () => {
-    if (user?.role === 'student') {
+  const refreshUser = async () => {
+    try {
+      const result = await fetchCurrentUser();
+      const userData = result.data || result;
+      const imgUrl = userData.img_url 
+        ? (userData.img_url.startsWith('http') 
+          ? userData.img_url 
+          : `${BASE_URL}${userData.img_url.split('/').map((s: string) => encodeURIComponent(s)).join('/')}?t=${Date.now()}`)
+        : undefined;
+      
+      setUser(prev => prev ? {
+        ...prev,
+        name: userData.name || prev.name,
+        email: userData.email || prev.email,
+        profileImage: imgUrl,
+      } : null);
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
       try {
-        const berriesData = await getUserAvailableBerries();
-        const availableBerries = berriesData.availableBerries || 0;
-        setUser(prev => prev ? { ...prev, totalPoints: availableBerries } : null);
-      } catch (error) {
-        console.warn('Failed to refresh user berries');
+        await logoutApi();
+      } catch {
+        // Advisory
       }
+      await clearAuthData();
+      setUser(null);
+      router.replace('/login');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Logout failed: ' + error.message);
+      } else {
+        Alert.alert('Error', 'Logout failed: ' + error.message);
+      }
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const logout = () => {
-    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, refreshUserBerries }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -89,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

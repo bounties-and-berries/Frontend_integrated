@@ -1,310 +1,174 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 import TopMenuBar from '@/components/TopMenuBar';
 import AnimatedCard from '@/components/AnimatedCard';
-import { FileText, Shield, Users, Award } from 'lucide-react-native';
 
-export default function TermsAndConditions() {
+export default function TermsScreen() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const getTermsContent = () => {
+    switch (user?.role) {
+      case 'student':
+        return (
+          <>
+            <Text style={[styles.heading, { color: theme.colors.text }]}>1. Participation & Bounties</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              As a student, you agree to participate fairly in all campus bounties and events. 
+              Any manipulation of points or submitting false proof of participation will lead to 
+              immediate disqualification and a ban from the Bounties & Berries program.
+            </Text>
+            
+            <Text style={[styles.heading, { color: theme.colors.text }]}>2. Berries & Rewards</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              Berries earned through events carry no real-world monetary value and cannot be 
+              exchanged for cash. Rewards inventory is subject to availability, and the college
+              reserves the right to modify or withdraw rewards at any time without prior notice.
+            </Text>
+
+            <Text style={[styles.heading, { color: theme.colors.text }]}>3. Code of Conduct</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              You must maintain respectful behavior during all events. Faculty members hosting
+              events hold the final say in approving your attendance and distributing points.
+            </Text>
+          </>
+        );
+      case 'faculty':
+        return (
+          <>
+            <Text style={[styles.heading, { color: theme.colors.text }]}>1. Event Creation & Hosting</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              As a faculty member, you are responsible for providing accurate details when creating
+              events and bounties. You must evaluate student participation fairly and distribute
+              points objectively based on the student's contribution.
+            </Text>
+
+            <Text style={[styles.heading, { color: theme.colors.text }]}>2. Points Arbitration</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              You commit to reviewing pending point requests systematically. Approval or rejection
+              of points must be done in accordance with the college guidelines. Any arbitrary 
+              denial or favoritism is strictly prohibited.
+            </Text>
+
+            <Text style={[styles.heading, { color: theme.colors.text }]}>3. Data Privacy</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              You will have access to student participation records. You agree to treat this data 
+              confidentially and use it strictly for academic and administrative purposes related 
+              to the Bounties & Berries program.
+            </Text>
+          </>
+        );
+      case 'admin':
+        return (
+          <>
+            <Text style={[styles.heading, { color: theme.colors.text }]}>1. System Administration</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              As an administrator, you possess elevated privileges to manage the entire platform.
+              You agree to use these tools solely for maintaining the system, onboarding users safely,
+              and ensuring the integrity of the database.
+            </Text>
+
+            <Text style={[styles.heading, { color: theme.colors.text }]}>2. Policy Enforcement</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              You hold the responsibility to enforce the Terms and Conditions for both students and 
+              faculty. This includes the right to suspend accounts, intervene in disputes, and audit
+              point allocations across the platform.
+            </Text>
+
+            <Text style={[styles.heading, { color: theme.colors.text }]}>3. Reward Treasury Management</Text>
+            <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+              Administrators are responsible for restocking the rewards inventory and validating 
+              redemption codes. You must strictly monitor the transactional integrity of the 
+              berries economy.
+            </Text>
+          </>
+        );
+      default:
+        return (
+          <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+            Please log in to view the terms applicable to your account.
+          </Text>
+        );
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Terms & Conditions"
-        subtitle="App usage guidelines and policies"
-        showBackButton={true}
+        subtitle="App policies and guidelines"
+        showBackButton
+        onBackPress={() => router.back()}
       />
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Introduction */}
-        <View style={styles.section}>
-          <AnimatedCard style={styles.introCard}>
-            <View style={styles.introContent}>
-              <FileText size={32} color={theme.colors.primary} />
-              <View style={styles.introText}>
-                <Text style={[styles.introTitle, { color: theme.colors.text }]}>
-                  Welcome to Bounties & Berries
-                </Text>
-                <Text style={[styles.introSubtitle, { color: theme.colors.textSecondary }]}>
-                  Your student engagement and reward platform
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* App Purpose */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            About the App
+      
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <AnimatedCard style={styles.card}>
+          <Text style={[styles.title, { color: theme.colors.primary }]}>
+            {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ''} Terms of Service
           </Text>
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.cardContent}>
-              <Award size={24} color={theme.colors.accent} />
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                  Purpose
-                </Text>
-                <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
-                  Bounties & Berries is designed to encourage student participation in college activities beyond academics. Students earn "berries" (points) for participating in various activities and can redeem them for rewards.
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* How It Works */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            How It Works
-          </Text>
-          
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
-                For Students:
-              </Text>
-              <View style={styles.stepsList}>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Participate in college events, cultural activities, volunteer work, and maintain good attendance
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Earn berries (points) for your participation and achievements
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Submit external activities for point consideration
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Redeem berries for rewards like food coupons, merchandise, and fee discounts
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Track your progress and compete with peers on the leaderboard
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
-                For Faculty:
-              </Text>
-              <View style={styles.stepsList}>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Create and manage college events and activities
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Review and approve student point requests
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Monitor student progress and engagement
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Generate QR codes for attendance tracking
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
-                For Administrators:
-              </Text>
-              <View style={styles.stepsList}>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Manage user accounts and permissions
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Set up point allocation rules and reward systems
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Purchase berries for distribution
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                  • Monitor overall system analytics and performance
-                </Text>
-              </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* User Responsibilities */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            User Responsibilities
-          </Text>
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.cardContent}>
-              <Users size={24} color={theme.colors.secondary} />
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                  Expected Behavior
-                </Text>
-                <View style={styles.stepsList}>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Use the app honestly and provide accurate information
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Respect other users and maintain a positive environment
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Submit genuine proof for external activities
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Follow college guidelines and policies
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Report any issues or bugs to the support team
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* Privacy and Data */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Privacy & Data Protection
-          </Text>
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.cardContent}>
-              <Shield size={24} color={theme.colors.success} />
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                  Your Data is Safe
-                </Text>
-                <View style={styles.stepsList}>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • We collect only necessary information for app functionality
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • Your personal data is encrypted and securely stored
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • We do not share your data with third parties without consent
-                  </Text>
-                  <Text style={[styles.stepItem, { color: theme.colors.textSecondary }]}>
-                    • You can request data deletion by contacting support
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* Support */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Support & Contact
-          </Text>
-          <AnimatedCard style={styles.contentCard}>
-            <View style={styles.cardContent}>
-              <Text style={[styles.supportText, { color: theme.colors.textSecondary }]}>
-                For any questions, issues, or feedback regarding the app, please contact your college administration or use the "Raise Query" option in the app menu.
-              </Text>
-            </View>
-          </AnimatedCard>
-        </View>
-
-        {/* Last Updated */}
-        <View style={styles.section}>
           <Text style={[styles.lastUpdated, { color: theme.colors.textSecondary }]}>
-            Last updated: March 2024
+            Last updated: March 10, 2026
           </Text>
-        </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+
+          <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
+            By accessing or using the Bounties & Berries application, you agree to be bound by these terms. 
+            These terms are specifically tailored to your role within the institution.
+          </Text>
+
+          {getTermsContent()}
+
+          <View style={[styles.divider, { backgroundColor: theme.colors.border, marginTop: 24 }]} />
+          
+          <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
+            Bounties & Berries © 2026. All rights reserved.
+          </Text>
+        </AnimatedCard>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: 16,
-  },
-  introCard: {
-    marginBottom: 0,
-  },
-  introContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  introText: {
-    flex: 1,
-  },
-  introTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  introSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 4,
-  },
-  contentCard: {
-    marginBottom: 16,
-  },
-  cardContent: {
-    gap: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
-  },
-  cardDescription: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
-  cardText: {
-    flex: 1,
-  },
-  stepContent: {
-    gap: 12,
-  },
-  stepTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  stepsList: {
-    gap: 8,
-  },
-  stepItem: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
-  supportText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-    textAlign: 'center',
+  container: { flex: 1 },
+  scrollContent: { padding: 20 },
+  card: { padding: 24, paddingBottom: 32 },
+  title: {
+    fontSize: 22,
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 4,
   },
   lastUpdated: {
     fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 16,
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    marginVertical: 16,
+    opacity: 0.6,
+  },
+  heading: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  paragraph: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    lineHeight: 22,
+  },
+  footerText: {
+    fontSize: 12,
     fontFamily: 'Inter-Regular',
     textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: 16,
   },
 });

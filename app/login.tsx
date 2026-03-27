@@ -15,9 +15,9 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
   withSpring,
   withTiming,
   withSequence,
@@ -32,11 +32,14 @@ const roles = [
 ];
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  
   const { login } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
@@ -61,8 +64,9 @@ export default function LoginScreen() {
   }));
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!username || !password) {
+      setErrorMsg('Please fill in all fields');
+      setShowErrorModal(true);
       return;
     }
 
@@ -73,7 +77,7 @@ export default function LoginScreen() {
     );
 
     try {
-      const success = await login(email, password, selectedRole);
+      const success = await login(username, password, selectedRole);
       if (success) {
         // Navigation will be handled by the index file based on user role
         switch (selectedRole) {
@@ -81,19 +85,18 @@ export default function LoginScreen() {
             router.replace('/(student)');
             break;
           case 'faculty':
-            router.replace('/(faculty)');
+            router.replace('/(faculty)' as any);
             break;
           case 'admin':
             router.replace('/(admin)');
             break;
-          default:
-            router.replace('/(student)');
         }
-      } else {
-        Alert.alert('Error', 'Invalid credentials. Please check your email, password, and selected role.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Login failed. Please try again.');
+    } catch (error: any) {
+      console.log('Login failed with error:', error);
+      const message = error.message || (error.response?.data?.message) || 'Login failed. Please try again.';
+      setErrorMsg(message);
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +108,16 @@ export default function LoginScreen() {
 
   const fillDemoCredentials = (role: string) => {
     setSelectedRole(role);
-    setEmail(`${role}@demo.com`);
-    setPassword('password');
+    if (role === 'student') {
+      setUsername('student1');
+      setPassword('student123');
+    } else if (role === 'faculty') {
+      setUsername('faculty1');
+      setPassword('faculty123');
+    } else if (role === 'admin') {
+      setUsername('admin');
+      setPassword('admin123');
+    }
   };
 
   return (
@@ -140,10 +151,10 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* Login Card */}
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.loginCard, 
-              { backgroundColor: theme.colors.card }, 
+              styles.loginCard,
+              { backgroundColor: theme.colors.card },
               animatedCardStyle
             ]}
           >
@@ -159,24 +170,24 @@ export default function LoginScreen() {
                     style={[
                       styles.roleButton,
                       {
-                        backgroundColor: selectedRole === role.id 
-                          ? theme.colors.primary 
+                        backgroundColor: selectedRole === role.id
+                          ? theme.colors.primary
                           : theme.colors.surface,
                         borderColor: theme.colors.border,
                       }
                     ]}
                     onPress={() => setSelectedRole(role.id)}
                   >
-                    <User 
-                      size={18} 
-                      color={selectedRole === role.id ? '#FFFFFF' : theme.colors.textSecondary} 
+                    <User
+                      size={18}
+                      color={selectedRole === role.id ? '#FFFFFF' : theme.colors.textSecondary}
                     />
                     <Text style={[
                       styles.roleButtonText,
-                      { 
-                        color: selectedRole === role.id 
-                          ? '#FFFFFF' 
-                          : theme.colors.textSecondary 
+                      {
+                        color: selectedRole === role.id
+                          ? '#FFFFFF'
+                          : theme.colors.textSecondary
                       }
                     ]}>
                       {role.label}
@@ -188,14 +199,14 @@ export default function LoginScreen() {
 
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <View style={[styles.inputWrapper, { borderColor: theme.colors.border }]}>                
+              <View style={[styles.inputWrapper, { borderColor: theme.colors.border }]}>
                 <Mail size={20} color={theme.colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: theme.colors.text }]}
-                  placeholder="User name"
+                  placeholder="Username"
                   placeholderTextColor={theme.colors.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
+                  value={username}
+                  onChangeText={setUsername}
                   keyboardType="default"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -250,9 +261,34 @@ export default function LoginScreen() {
           </Animated.View>
         </View>
       </ScrollView>
+
+      {/* Absolutely Positioned Error Overlay */}
+      {showErrorModal && (
+        <View style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowErrorModal(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+              <View style={[styles.modalIcon, { backgroundColor: theme.colors.error + '15' }]}>
+                <User size={32} color={theme.colors.error} />
+              </View>
+              <Text style={[styles.modalTitle, { color: theme.colors.error }]}>Login Failed!</Text>
+              <Text style={[styles.modalMessage, { color: theme.colors.textSecondary }]}>{errorMsg}</Text>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setShowErrorModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
     </LinearGradient>
   );
-} 
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -394,6 +430,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   publicButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  // Modal Styles
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
   },

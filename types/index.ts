@@ -5,6 +5,10 @@ export interface User {
   role: 'student' | 'faculty' | 'admin';
   profileImage?: string;
   createdAt: string;
+  push_notifications_enabled?: boolean;
+  email_notifications_enabled?: boolean;
+  level?: number;
+  xp?: number;
 }
 
 export interface Student extends User {
@@ -14,6 +18,8 @@ export interface Student extends User {
   totalPoints: number;
   achievements: Achievement[];
   badges: Badge[];
+  level: number;
+  xp: number;
 }
 
 export interface Faculty extends User {
@@ -35,78 +41,13 @@ export interface Achievement {
   description: string;
   points: number;
   category: 'academic' | 'cultural' | 'volunteer' | 'attendance';
-  date: string;
-  status: 'pending' | 'approved' | 'rejected';
-  proofUrl?: string;
-  approvedBy?: string;
-}
-
-export interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  earnedAt: string;
-  category: string;
-}
-
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  category: 'academic' | 'cultural' | 'volunteer' | 'sports';
-  date: string;
-  location: string;
-  points: number;
-  registrationDeadline: string;
-  maxParticipants: number;
-  currentParticipants: number;
-  createdBy: string;
-  image?: string;
-}
-
-export interface Bounty {
-  id: number;
-  name: string;
-  description: string;
-  type: string;
-  img_url?: string;
-  image_hash?: string;
-  alloted_points: number;
-  alloted_berries: number;
-  scheduled_date: string;
-  venue: string;
-  capacity: number;
-  is_active: boolean;
-  created_by?: number;
-  modified_by?: number;
-  created_on?: string;
-  modified_on?: string;
-  current_participants?: number;
-  is_registered?: boolean;
-}
-
-export interface Reward {
-  id: string;
-  title: string;
-  description: string;
-  category: 'food' | 'merchandise' | 'discount' | 'fee';
-  pointsCost: number;
-  availability: number;
-  image?: string;
-  terms?: string;
-}
-
-export interface PointTransaction {
-  id: string;
-  studentId: string;
-  points: number;
   type: 'earned' | 'spent';
-  description: string;
   date: string;
-  category?: string;
   eventId?: string;
   rewardId?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  proofUrl?: string;
 }
 
 export interface Notification {
@@ -118,6 +59,60 @@ export interface Notification {
   read: boolean;
   date: string;
   actionUrl?: string;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  type: string;
+  icon?: string;
+  img_url?: string;
+  image_hash?: string;
+  date?: string;
+  earnedAt?: string;
+  alloted_points: number;
+  alloted_berries: number;
+  scheduled_date: string;
+  venue: string;
+  capacity: number;
+  category: 'academic' | 'cultural' | 'volunteer' | 'attendance' | 'food' | 'merchandise' | 'discount' | 'fee';
+  pointsCost: number;
+  availability: number;
+  image?: string;
+  terms?: string;
+  description?: string;
+  is_registered?: boolean;
+  current_participants?: number;
+}
+
+export interface Bounty extends Badge { }
+
+export interface Event extends Bounty {
+  location?: string;
+  points?: number;
+  registrationDeadline?: string;
+  maxParticipants?: number;
+  currentParticipants?: number;
+  createdBy?: string;
+}
+
+export interface Reward {
+  id: string;
+  name: string;
+  description: string;
+  category?: string;
+  pointsCost: number;
+  availability?: number;
+  image?: string;
+}
+
+export interface PointTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  type: 'earned' | 'spent';
+  reason: string;
+  date: string;
 }
 
 export interface PublicProfile {

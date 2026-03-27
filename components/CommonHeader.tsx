@@ -4,145 +4,114 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
+  SafeAreaView,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { Bell, Menu } from 'lucide-react-native';
+import { ChevronLeft, Bell, Menu } from 'lucide-react-native';
+import { SPACING, TYPOGRAPHY, SHADOWS } from '@/utils/designSystem';
 
 interface CommonHeaderProps {
   title: string;
   subtitle?: string;
-  showNotifications?: boolean;
-  onMenuPress?: () => void;
-  onNotificationPress?: () => void;
+  showBackButton?: boolean;
+  leftAction?: 'menu' | 'back' | React.ReactNode;
+  rightAction?: 'notifications' | React.ReactNode;
+  onLeftActionPress?: () => void;
+  onRightActionPress?: () => void;
 }
 
-export default function CommonHeader({ 
-  title, 
-  subtitle, 
-  showNotifications = true,
-  onMenuPress,
-  onNotificationPress 
+export default function CommonHeader({
+  title,
+  subtitle,
+  leftAction,
+  rightAction,
+  onLeftActionPress,
+  onRightActionPress,
 }: CommonHeaderProps) {
   const { theme } = useTheme();
-  const { user } = useAuth();
   const router = useRouter();
 
-  const handleNotificationPress = () => {
-    if (onNotificationPress) {
-      onNotificationPress();
-    } else {
-      // Default notification navigation based on role
-      switch (user?.role) {
-        case 'student':
-          router.push('/(student)/notifications' as any);
-          break;
-        case 'faculty':
-          router.push('/(faculty)/notifications' as any);
-          break;
-        case 'admin':
-          router.push('/(admin)/notifications' as any);
-          break;
-      }
+  const handleLeftAction = () => {
+    if (onLeftActionPress) {
+      onLeftActionPress();
+    } else if (leftAction === 'back') {
+      router.back();
     }
   };
 
+  const renderLeftAction = () => {
+    if (leftAction === 'menu' || leftAction === 'back') {
+      const Icon = leftAction === 'menu' ? Menu : ChevronLeft;
+      return (
+        <TouchableOpacity onPress={handleLeftAction} style={styles.actionButton}>
+          <Icon size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+      );
+    }
+    return leftAction ? <View>{leftAction}</View> : <View style={styles.actionButton} />;
+  };
+
+  const renderRightAction = () => {
+    if (rightAction === 'notifications') {
+      return (
+        <TouchableOpacity onPress={onRightActionPress} style={styles.actionButton}>
+          <Bell size={22} color={theme.colors.text} />
+        </TouchableOpacity>
+      );
+    }
+    return rightAction ? <View>{rightAction}</View> : <View style={styles.actionButton} />;
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
-        <View style={styles.titleSection}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
+        {renderLeftAction()}
+        <View style={styles.titleContainer}>
+          <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
             {title}
           </Text>
           {subtitle && (
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
               {subtitle}
             </Text>
           )}
         </View>
-        
-        <View style={styles.headerActions}>
-          {showNotifications && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
-              onPress={handleNotificationPress}
-              activeOpacity={0.7}
-            >
-              <Bell size={20} color={theme.colors.text} />
-            </TouchableOpacity>
-          )}
-          
-          {onMenuPress && (
-            <TouchableOpacity
-              style={[styles.menuButton, { backgroundColor: theme.colors.card }]}
-              onPress={onMenuPress}
-              activeOpacity={0.7}
-            >
-              <Menu size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {renderRightAction()}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    ...SHADOWS.sm,
+  },
   container: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  content: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    height: 60,
+    borderBottomWidth: 1,
   },
-  titleSection: {
+  titleContainer: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: SPACING.sm,
   },
   title: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Bold',
-    marginBottom: 4,
+    ...TYPOGRAPHY.h3,
   },
   subtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
+    ...TYPOGRAPHY.body,
+    marginTop: 2,
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  menuButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });

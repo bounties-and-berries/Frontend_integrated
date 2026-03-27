@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
@@ -5,62 +6,109 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Alert,
   Switch,
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { Student } from '@/types';
+import { updateProfileImage, updateUserProfile } from '@/utils/api';
+import * as ImagePicker from 'expo-image-picker';
 import AnimatedCard from '@/components/AnimatedCard';
-import { User, Lock, Bell, CircleHelp as HelpCircle, FileText, MessageSquare, Camera, Moon, Sun, LogOut, ChevronRight } from 'lucide-react-native';
+import { Users, Lock, Bell, HelpCircle, FileText, MessageSquare, Camera, LogOut, ChevronRight } from 'lucide-react-native';
 
 export default function StudentSettings() {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
-  const student = user as Student;
-  
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const handleLogout = () => {
+  const student = user as Student;
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState(student?.push_notifications_enabled ?? true);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const toggleNotifications = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    try {
+      if (user) {
+        await updateUserProfile(user.id, { push_notifications_enabled: value });
+      }
+    } catch (error) {
+      console.error('Failed to update notification settings:', error);
+      Alert.alert('Error', 'Failed to save notification settings');
+      setNotificationsEnabled(!value);
+    }
+  };
+
+  const handleLogout = async () => {
+    console.log('🟢 Student handleLogout called');
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to logout?')) {
+        console.log('🟢 Logout confirmed, calling logout function...');
+        try {
+          await logout();
+          console.log('✅ Logout function completed');
+        } catch (error: any) {
+          console.error('❌ Error during logout:', error);
+          window.alert('Failed to logout: ' + error.message);
+        }
+      } else {
+        console.log('❌ Logout cancelled');
+      }
+      return;
+    }
+
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('❌ Logout cancelled')
+        },
+        {
+          text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/login');
-          }
-        }
+          onPress: async () => {
+            console.log('🟢 Logout confirmed, calling logout function...');
+            try {
+              await logout();
+              console.log('✅ Logout function completed');
+            } catch (error: any) {
+              console.error('❌ Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout: ' + error.message);
+            }
+          },
+        },
       ]
     );
   };
 
   const handleChangePassword = () => {
-    Alert.alert('Change Password', 'This feature will be available soon.');
+    router.push('/change-password');
   };
 
   const handleRaiseQuery = () => {
-    Alert.alert('Raise Query', 'This feature will be available soon.');
+    router.push('/(student)/raise-query');
   };
 
-  const handleUploadPhoto = () => {
-    Alert.alert('Upload Photo', 'This feature will be available soon.');
+  const handleUploadPhoto = async () => {
+    router.push('/profile-photo');
   };
 
   const settingsOptions = [
     {
       id: 'profile',
       title: 'Profile Photo',
-      subtitle: 'Change your profile picture',
+      subtitle: isUploadingPhoto ? 'Uploading...' : 'Change your profile picture',
       icon: Camera,
       onPress: handleUploadPhoto,
+      loading: isUploadingPhoto,
     },
     {
       id: 'password',
@@ -74,7 +122,7 @@ export default function StudentSettings() {
       title: 'Terms & Conditions',
       subtitle: 'Read our terms and conditions',
       icon: FileText,
-      onPress: () => Alert.alert('Terms & Conditions', 'This will open the terms page.'),
+      onPress: () => router.push('/terms'),
     },
     {
       id: 'query',
@@ -88,7 +136,7 @@ export default function StudentSettings() {
       title: 'Help & Support',
       subtitle: 'Get help with using the app',
       icon: HelpCircle,
-      onPress: () => Alert.alert('Help & Support', 'This will open the help center.'),
+      onPress: () => router.push('/help'),
     },
   ];
 
@@ -104,16 +152,19 @@ export default function StudentSettings() {
         </Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Section 
+        {/* Profile Section */}
         <View style={styles.section}>
-          <AnimatedCard style={styles.profileCard}>
+          <AnimatedCard
+            style={styles.profileCard}
+            onPress={() => router.push('/(student)/profile')}
+          >
             <View style={styles.profileContent}>
               <Image
-                source={{ uri: student?.profileImage }}
+                source={student?.profileImage ? { uri: student.profileImage } : require('@/assets/images/default-avatar.png')}
                 style={styles.profileImage}
               />
               <View style={styles.profileInfo}>
@@ -127,44 +178,16 @@ export default function StudentSettings() {
                   {student?.department} • Year {student?.year}
                 </Text>
               </View>
+              <ChevronRight size={20} color={theme.colors.textSecondary} />
             </View>
           </AnimatedCard>
         </View>
-        */}
 
         {/* Preferences Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Preferences
           </Text>
-          
-          <AnimatedCard style={styles.settingCard}>
-            <View style={styles.settingContent}>
-              <View style={styles.settingInfo}>
-                <View style={[styles.settingIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  {isDark ? (
-                    <Moon size={20} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={20} color={theme.colors.primary} />
-                  )}
-                </View>
-                <View>
-                  <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                  <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
-                    Switch between light and dark theme
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor={isDark ? '#FFFFFF' : theme.colors.surface}
-              />
-            </View>
-          </AnimatedCard>
 
           <AnimatedCard style={styles.settingCard}>
             <View style={styles.settingContent}>
@@ -183,7 +206,7 @@ export default function StudentSettings() {
               </View>
               <Switch
                 value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                onValueChange={toggleNotifications}
                 trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
                 thumbColor={notificationsEnabled ? '#FFFFFF' : theme.colors.surface}
               />
@@ -196,17 +219,21 @@ export default function StudentSettings() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Account
           </Text>
-          
+
           {settingsOptions.map((option) => (
-            <AnimatedCard 
-              key={option.id} 
+            <AnimatedCard
+              key={option.id}
               style={styles.settingCard}
-              onPress={option.onPress}
+              onPress={option.loading ? undefined : option.onPress}
             >
               <View style={styles.settingContent}>
                 <View style={styles.settingInfo}>
                   <View style={[styles.settingIcon, { backgroundColor: theme.colors.secondary + '20' }]}>
-                    <option.icon size={20} color={theme.colors.secondary} />
+                    {option.loading ? (
+                      <ActivityIndicator size={20} color={theme.colors.secondary} />
+                    ) : (
+                      <option.icon size={20} color={theme.colors.secondary} />
+                    )}
                   </View>
                   <View>
                     <Text style={[styles.settingTitle, { color: theme.colors.text }]}>
@@ -217,7 +244,9 @@ export default function StudentSettings() {
                     </Text>
                   </View>
                 </View>
-                <ChevronRight size={20} color={theme.colors.textSecondary} />
+                {!option.loading && (
+                  <ChevronRight size={20} color={theme.colors.textSecondary} />
+                )}
               </View>
             </AnimatedCard>
           ))}
@@ -283,6 +312,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: '#E5E7EB',
   },
   profileInfo: {
     flex: 1,

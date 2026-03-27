@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
@@ -5,28 +6,31 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Alert,
   Switch,
   TextInput,
   Modal,
   ActivityIndicator,
+  Platform
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { Faculty } from '@/types';
+import { changePassword, updateProfileImage } from '@/utils/api';
+import * as ImagePicker from 'expo-image-picker';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
 import DocumentPicker from '@/components/DocumentPicker';
-import { User, Lock, CircleHelp as HelpCircle, FileText, MessageSquare, Camera, LogOut, ChevronRight } from 'lucide-react-native';
+// @ts-ignore - lucide-react-native icons work at runtime despite TS warnings
+import { Users, Lock, Info, FileText, MessageSquare, Camera, LogOut, ChevronRight } from 'lucide-react-native';
 
 export default function FacultySettings() {
   const { theme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
   const faculty = user as Faculty;
-  
+
   // Loading states
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -39,18 +43,46 @@ export default function FacultySettings() {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    console.log('🟢 Faculty handleLogout called');
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to logout?')) {
+        console.log('🟢 Logout confirmed, calling logout function...');
+        try {
+          await logout();
+          console.log('✅ Logout function completed');
+        } catch (error: any) {
+          console.error('❌ Error during logout:', error);
+          window.alert('Failed to logout: ' + error.message);
+        }
+      } else {
+        console.log('❌ Logout cancelled');
+      }
+      return;
+    }
+
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('❌ Logout cancelled')
+        },
+        {
+          text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/login');
+          onPress: async () => {
+            console.log('🟢 Logout confirmed, calling logout function...');
+            try {
+              await logout();
+              console.log('✅ Logout function completed');
+            } catch (error: any) {
+              console.error('❌ Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout: ' + error.message);
+            }
           }
         }
       ]
@@ -58,7 +90,7 @@ export default function FacultySettings() {
   };
 
   const handleChangePassword = () => {
-    setShowPasswordModal(true);
+    router.push('/change-password');
   };
 
   const handlePasswordChange = async () => {
@@ -66,28 +98,30 @@ export default function FacultySettings() {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
-    
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       Alert.alert('Error', 'New passwords do not match.');
       return;
     }
-    
+
     if (passwordData.newPassword.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters long.');
       return;
     }
-    
+
     setIsChangingPassword(true);
-    
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       Alert.alert('Success', 'Password changed successfully!', [
-        { text: 'OK', onPress: () => {
-          setShowPasswordModal(false);
-          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        }}
+        {
+          text: 'OK', onPress: () => {
+            setShowPasswordModal(false);
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+          }
+        }
       ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to change password. Please try again.');
@@ -97,77 +131,25 @@ export default function FacultySettings() {
   };
 
   const handleRaiseQuery = () => {
-    Alert.alert(
-      'Raise Query',
-      'How would you like to contact support?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Email Support', onPress: () => {
-          Alert.alert('Email Support', 'Opening email client...\nsupport@bountiesandberries.com');
-        }},
-        { text: 'Live Chat', onPress: () => {
-          Alert.alert('Live Chat', 'Live chat feature will be available soon.');
-        }}
-      ]
-    );
+    router.push('/(faculty)/raise-query');
   };
 
-  const handleUploadPhoto = async () => {
-    Alert.alert(
-      'Upload Photo',
-      'Choose photo source',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Camera', onPress: () => simulatePhotoUpload('camera') },
-        { text: 'Gallery', onPress: () => simulatePhotoUpload('gallery') }
-      ]
-    );
+  const handleUploadPhoto = () => {
+    router.push('/profile-photo');
   };
-  
-  const simulatePhotoUpload = async (source: string) => {
-    setIsUploadingPhoto(true);
-    
-    try {
-      // Simulate photo upload
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      Alert.alert('Success', `Photo uploaded successfully from ${source}!`);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  };
-  
+
   const handleTerms = () => {
-    Alert.alert(
-      'Terms & Conditions',
-      'This will redirect you to our terms and conditions page. Would you like to continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Continue', onPress: () => {
-          Alert.alert('Terms', 'Redirecting to terms page...');
-        }}
-      ]
-    );
+    router.push('/terms');
   };
-  
+
   const handleHelpSupport = () => {
-    Alert.alert(
-      'Help & Support',
-      'Choose a help option:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'FAQ', onPress: () => Alert.alert('FAQ', 'Opening FAQ section...') },
-        { text: 'User Guide', onPress: () => Alert.alert('User Guide', 'Opening user guide...') },
-        { text: 'Contact Support', onPress: handleRaiseQuery }
-      ]
-    );
+    router.push('/help');
   };
-  
+
   const handleDocumentUpload = () => {
     setShowDocumentModal(true);
   };
-  
+
   const handleFileSelected = (file: any) => {
     setUploadedDocuments(prev => [...prev, {
       id: Date.now().toString(),
@@ -225,7 +207,7 @@ export default function FacultySettings() {
       id: 'help',
       title: 'Help & Support',
       subtitle: 'Get help with using the app',
-      icon: HelpCircle,
+      icon: Info,
       onPress: handleHelpSupport,
       loading: false,
     },
@@ -233,13 +215,13 @@ export default function FacultySettings() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background, flex: 1 }]}>
-      <TopMenuBar 
+      <TopMenuBar
         title="Settings"
         subtitle="Manage your account and preferences"
         showBackButton={true}
       />
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -248,7 +230,7 @@ export default function FacultySettings() {
           <AnimatedCard style={styles.profileCard}>
             <View style={styles.profileContent}>
               <Image
-                source={{ uri: faculty?.profileImage }}
+                source={faculty?.profileImage ? { uri: faculty.profileImage } : require('@/assets/images/default-avatar.png')}
                 style={styles.profileImage}
               />
               <View style={styles.profileInfo}>
@@ -274,10 +256,10 @@ export default function FacultySettings() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Account
           </Text>
-          
+
           {settingsOptions.map((option) => (
-            <AnimatedCard 
-              key={option.id} 
+            <AnimatedCard
+              key={option.id}
               style={{
                 ...styles.settingCard,
                 opacity: option.loading ? 0.7 : 1
@@ -324,7 +306,7 @@ export default function FacultySettings() {
           </AnimatedCard>
         </View>
       </ScrollView>
-      
+
       {/* Password Change Modal */}
       <Modal
         visible={showPasswordModal}
@@ -338,27 +320,27 @@ export default function FacultySettings() {
               <Text style={[styles.modalCancelButton, { color: theme.colors.primary }]}>Cancel</Text>
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Change Password</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handlePasswordChange}
               disabled={isChangingPassword}
             >
               <Text style={[
-                styles.modalSaveButton, 
+                styles.modalSaveButton,
                 { color: isChangingPassword ? theme.colors.textSecondary : theme.colors.primary }
               ]}>
                 {isChangingPassword ? 'Saving...' : 'Save'}
               </Text>
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             <View style={styles.inputSection}>
               <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Current Password</Text>
               <TextInput
-                style={[styles.textInput, { 
+                style={[styles.textInput, {
                   backgroundColor: theme.colors.surface,
                   color: theme.colors.text,
-                  borderColor: theme.colors.border 
+                  borderColor: theme.colors.border
                 }]}
                 value={passwordData.currentPassword}
                 onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
@@ -367,14 +349,14 @@ export default function FacultySettings() {
                 placeholderTextColor={theme.colors.textSecondary}
               />
             </View>
-            
+
             <View style={styles.inputSection}>
               <Text style={[styles.inputLabel, { color: theme.colors.text }]}>New Password</Text>
               <TextInput
-                style={[styles.textInput, { 
+                style={[styles.textInput, {
                   backgroundColor: theme.colors.surface,
                   color: theme.colors.text,
-                  borderColor: theme.colors.border 
+                  borderColor: theme.colors.border
                 }]}
                 value={passwordData.newPassword}
                 onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
@@ -383,14 +365,14 @@ export default function FacultySettings() {
                 placeholderTextColor={theme.colors.textSecondary}
               />
             </View>
-            
+
             <View style={styles.inputSection}>
               <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Confirm New Password</Text>
               <TextInput
-                style={[styles.textInput, { 
+                style={[styles.textInput, {
                   backgroundColor: theme.colors.surface,
                   color: theme.colors.text,
-                  borderColor: theme.colors.border 
+                  borderColor: theme.colors.border
                 }]}
                 value={passwordData.confirmPassword}
                 onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
@@ -399,7 +381,7 @@ export default function FacultySettings() {
                 placeholderTextColor={theme.colors.textSecondary}
               />
             </View>
-            
+
             {isChangingPassword && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -411,7 +393,7 @@ export default function FacultySettings() {
           </ScrollView>
         </View>
       </Modal>
-      
+
       {/* Document Upload Modal */}
       <Modal
         visible={showDocumentModal}
@@ -427,14 +409,14 @@ export default function FacultySettings() {
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Upload Documents</Text>
             <View style={{ width: 60 }} />
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             <View style={styles.uploadSection}>
               <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Upload New Document</Text>
               <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
                 Supported formats: PDF, DOCX, PNG, JPG (Max 10MB)
               </Text>
-              
+
               <DocumentPicker
                 onFileSelected={handleFileSelected}
                 acceptedTypes={['pdf', 'docx', 'png', 'jpg', 'jpeg']}
@@ -443,7 +425,7 @@ export default function FacultySettings() {
                 style={{ marginTop: 16 }}
               />
             </View>
-            
+
             {/* Uploaded Documents List */}
             {uploadedDocuments.length > 0 && (
               <View style={styles.uploadedSection}>
@@ -471,10 +453,12 @@ export default function FacultySettings() {
                             [
                               { text: 'Cancel', style: 'cancel' },
                               { text: 'View', onPress: () => Alert.alert('View', 'Opening document...') },
-                              { text: 'Delete', style: 'destructive', onPress: () => {
-                                setUploadedDocuments(prev => prev.filter(d => d.id !== doc.id));
-                                Alert.alert('Deleted', 'Document removed successfully.');
-                              }}
+                              {
+                                text: 'Delete', style: 'destructive', onPress: () => {
+                                  setUploadedDocuments(prev => prev.filter(d => d.id !== doc.id));
+                                  Alert.alert('Deleted', 'Document removed successfully.');
+                                }
+                              }
                             ]
                           );
                         }}

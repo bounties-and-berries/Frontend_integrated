@@ -4,46 +4,53 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
   TextInput,
   Alert,
   Modal,
   Pressable,
-  Modal as RNModal,
-  Clipboard,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 import { Student } from '@/types';
-import { searchRewards, claimReward, getMyParticipations, getClaimedRewards } from '@/utils/api';
-import GradientCard from '@/components/GradientCard';
+import { searchRewards, claimReward, getClaimedRewards, getUserAvailableBerries } from '@/utils/api';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Search, Gift, Star, Tag, TrendingDown, ShoppingBag, Filter, X, ArrowUpDown } from 'lucide-react-native';
+import {
+  Search,
+  Gift,
+  Star,
+  Tag,
+  TrendingDown,
+  ShoppingBag,
+  Filter,
+  X,
+  Wallet,
+  ChevronRight,
+  Clock,
+  Sparkles,
+} from 'lucide-react-native';
 
-const categories = ['All', 'Food', 'Merchandise', 'Discount', 'Fee'];
-const expiryFilters = ['All', 'Expiring Soon', 'Valid', 'Expired'];
 const sortOptions = ['Expiry Date', 'Name'];
 
 export default function StudentRewards() {
   const { theme } = useTheme();
   const { user, refreshUserBerries } = useAuth();
+  const router = useRouter();
   const student = user as Student;
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedExpiry, setSelectedExpiry] = useState('All');
-  const [selectedSort, setSelectedSort] = useState('Points: Low to High');
+  const [selectedSort, setSelectedSort] = useState('Expiry Date');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   const [rewards, setRewards] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimMessage, setClaimMessage] = useState('');
   const [claimSuccess, setClaimSuccess] = useState<{ code: string; remaining: number; rewardId: string } | null>(null);
-  const [claimedRewardIds, setClaimedRewardIds] = useState<string[]>([]);
   const [itemsClaimed, setItemsClaimed] = useState(0);
   const [totalPointsSpent, setTotalPointsSpent] = useState(0);
   const [availableBerries, setAvailableBerries] = useState<number>(student?.totalPoints || 0);
@@ -58,7 +65,6 @@ export default function StudentRewards() {
       const filters: any = {
         filters: {
           name: searchQuery || undefined,
-          // Add expiryStart/expiryEnd/category if needed
         },
         sortBy,
         sortOrder: 'asc',
@@ -66,7 +72,6 @@ export default function StudentRewards() {
         pageSize: 50,
       };
       const res = await searchRewards(filters);
-      // Filter out expired rewards
       const now = new Date();
       const nonExpired = (res.results || []).filter((r: any) => !r.expiry_date || new Date(r.expiry_date) > now);
       setRewards(nonExpired);
@@ -77,21 +82,19 @@ export default function StudentRewards() {
     }
   };
 
-  // Calculate available berries and claimed rewards on mount
   React.useEffect(() => {
     const fetchBerriesAndClaims = async () => {
       try {
-        const [participationsRes, claimsRes] = await Promise.all([
-          getMyParticipations(),
+        const [statsRes, claimsRes] = await Promise.all([
+          getUserAvailableBerries(),
           getClaimedRewards(),
         ]);
-        const totalEarned = (participationsRes.participations || []).reduce((sum: number, p: any) => sum + (parseInt(p.berries_earned, 10) || 0), 0);
-        const totalSpent = (claimsRes || []).reduce((sum: number, c: any) => sum + (parseInt(c.berries_spent, 10) || 0), 0);
-        setAvailableBerries(totalEarned - totalSpent);
-        // Populate claimedRewardIds from backend
-        setClaimedRewardIds((claimsRes || []).map((c: any) => c.reward_id?.toString()));
+        const backendBerries = statsRes.data?.berries?.current;
+        const backendSpent = statsRes.data?.berries?.total_spent || 0;
+        setAvailableBerries(backendBerries !== undefined ? backendBerries : (student?.totalPoints || 0));
+        setTotalPointsSpent(backendSpent);
+        setItemsClaimed(claimsRes.length || 0);
       } catch (e) {
-        // fallback to context value
         setAvailableBerries(student?.totalPoints || 0);
       }
     };
@@ -100,27 +103,19 @@ export default function StudentRewards() {
 
   React.useEffect(() => {
     fetchRewards();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, selectedSort]);
 
   const handleClaim = async (reward: any) => {
-    console.log('Claim pressed', reward);
-    console.log(
-      'Available berries:', availableBerries, typeof availableBerries,
-      'Required:', reward.berries_required, typeof reward.berries_required
-    );
     const studentPoints = Number(availableBerries);
     const requiredPoints = Number(reward.berries_required);
-    console.log('Comparison:', studentPoints, '<', requiredPoints, '=', studentPoints < requiredPoints);
     if (studentPoints < requiredPoints) {
-      Alert.alert(
-        'Insufficient Berries',
-        `You need ${requiredPoints - studentPoints} more berries to claim this reward.`
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`You need ${requiredPoints - studentPoints} more berries to claim this reward.`);
+      } else {
+        Alert.alert('Insufficient Berries', `You need ${requiredPoints - studentPoints} more berries to claim this reward.`);
+      }
       return;
     }
-    console.log('Calling claimReward API for', reward.id);
-    // Directly call the claim logic
     setClaimingId(reward.id);
     setClaimMessage('');
     setClaimSuccess(null);
@@ -128,709 +123,409 @@ export default function StudentRewards() {
       const res = await claimReward(reward.id);
       setClaimMessage(res.message || 'Reward claimed successfully!');
       setClaimSuccess({ code: res.redeem_code, remaining: res.remaining_berries, rewardId: reward.id?.toString() });
+
+      // Optimistic update for immediate UI feedback
       setAvailableBerries(res.remaining_berries);
-      setClaimedRewardIds(prev => [...prev, reward.id?.toString()]);
+      setTotalPointsSpent(prev => prev + Number(reward.berries_required));
+      setItemsClaimed(prev => prev + 1);
       setShowClaimModal(true);
-      
-      // Refresh user's berries in the global context
+
+      // Then sync accurate data from backend
       await refreshUserBerries();
-      
       fetchRewards();
+
+      // Re-fetch latest stats so chips are perfectly accurate
+      try {
+        const [statsRes, claimsRes] = await Promise.all([getUserAvailableBerries(), getClaimedRewards()]);
+        const backendBerries = statsRes.data?.berries?.current;
+        const backendSpent = statsRes.data?.berries?.total_spent || 0;
+        if (backendBerries !== undefined) setAvailableBerries(backendBerries);
+        setTotalPointsSpent(backendSpent);
+        setItemsClaimed(claimsRes.length || 0);
+      } catch (_) { /* keep optimistic values if re-fetch fails */ }
     } catch (e: any) {
       setClaimMessage(e.message || 'Failed to claim reward');
       setClaimSuccess(null);
+      if (Platform.OS === 'web') {
+        window.alert(e.message || 'Failed to claim reward');
+      } else {
+        Alert.alert('Error', e.message || 'Failed to claim reward');
+      }
     } finally {
       setClaimingId(null);
-      // No auto-dismiss, user must close manually
     }
   };
 
-  const clearFilters = () => {
-    setSelectedCategory('All');
-    setSelectedExpiry('All');
-    setSelectedSort('Points: Low to High');
-    setShowFilters(false);
+  const getDaysUntilExpiry = (expiryDate: string | null) => {
+    if (!expiryDate) return null;
+    const diff = new Date(expiryDate).getTime() - Date.now();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Menu Bar */}
-      <TopMenuBar 
-        title="Rewards"
-        subtitle="Redeem your berries for exciting rewards"
-      />
+      <TopMenuBar title="Rewards" subtitle="Spend your berries on exciting rewards" />
 
-      {/* Points Card */}
-      <View style={styles.pointsSection}>
-        <GradientCard gradientColors={theme.colors.gradient.accent}>
-          <View style={styles.pointsCard}>
-            <Gift size={32} color="#FFFFFF" />
-            <View style={styles.pointsInfo}>
-              <Text style={styles.pointsLabel}>Available Berries</Text>
-              <Text style={styles.pointsValue}>{availableBerries}</Text>
+      <ScrollView style={styles.mainScroll} showsVerticalScrollIndicator={false}>
+        {/* ── Balance Strip ── */}
+        <View style={styles.balanceStrip}>
+          <View style={[styles.balanceCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.balanceLeft}>
+              <View style={[styles.balanceIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Wallet size={20} color={theme.colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.balanceLabel, { color: theme.colors.textSecondary }]}>Available</Text>
+                <Text style={[styles.balanceValue, { color: theme.colors.text }]}>{availableBerries} <Text style={styles.balanceUnit}>berries</Text></Text>
+              </View>
             </View>
+            <Sparkles size={18} color={theme.colors.accent} />
           </View>
-        </GradientCard>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsSection}>
-        <View style={styles.statsRow}>
-          <AnimatedCard style={styles.statCard}>
-            <View style={styles.statContent}>
-              <View style={[styles.statIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                <ShoppingBag size={20} color={theme.colors.primary} />
-              </View>
-              <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                {itemsClaimed}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Items Claimed
-              </Text>
-            </View>
-          </AnimatedCard>
-          
-          <AnimatedCard style={styles.statCard}>
-            <View style={styles.statContent}>
-              <View style={[styles.statIcon, { backgroundColor: theme.colors.error + '20' }]}>
-                <TrendingDown size={20} color={theme.colors.error} />
-              </View>
-              <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                {totalPointsSpent}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Total Berries Spent
-              </Text>
-            </View>
-          </AnimatedCard>
         </View>
-      </View>
 
-      {/* Search and Filter Bar */}
-      <View style={styles.searchSection}>
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <Search size={20} color={theme.colors.textSecondary} />
-          <TextInput
-            style={[styles.searchInput, { color: theme.colors.text }]}
-            placeholder="Search rewards..."
-            placeholderTextColor={theme.colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        {/* ── Quick Stats (tappable chips) ── */}
+        <View style={styles.chipRow}>
           <TouchableOpacity
-            style={[styles.filterButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => setShowFilters(true)}
+            style={[styles.chip, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => router.push('/(student)/claim-history?view=claims' as any)}
+            activeOpacity={0.7}
           >
-            <Filter size={16} color="#FFFFFF" />
+            <ShoppingBag size={16} color={theme.colors.primary} />
+            <Text style={[styles.chipValue, { color: theme.colors.text }]}>{itemsClaimed}</Text>
+            <Text style={[styles.chipLabel, { color: theme.colors.textSecondary }]}>Claimed</Text>
+            <ChevronRight size={14} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => router.push('/(student)/claim-history?view=spending' as any)}
+            activeOpacity={0.7}
+          >
+            <TrendingDown size={16} color={theme.colors.error} />
+            <Text style={[styles.chipValue, { color: theme.colors.text }]}>{totalPointsSpent}</Text>
+            <Text style={[styles.chipLabel, { color: theme.colors.textSecondary }]}>Spent</Text>
+            <ChevronRight size={14} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Active Filters Display */}
-      {(selectedCategory !== 'All' || selectedExpiry !== 'All' || selectedSort !== 'Points: Low to High') && (
-        <View style={styles.activeFiltersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.activeFilters}>
-              {selectedCategory !== 'All' && (
-                <View style={[styles.activeFilter, { backgroundColor: theme.colors.primary + '20' }]}>
-                  <Text style={[styles.activeFilterText, { color: theme.colors.primary }]}>
-                    {selectedCategory}
-                  </Text>
-                </View>
-              )}
-              {selectedExpiry !== 'All' && (
-                <View style={[styles.activeFilter, { backgroundColor: theme.colors.secondary + '20' }]}>
-                  <Text style={[styles.activeFilterText, { color: theme.colors.secondary }]}>
-                    {selectedExpiry}
-                  </Text>
-                </View>
-              )}
-              {selectedSort !== 'Points: Low to High' && (
-                <View style={[styles.activeFilter, { backgroundColor: theme.colors.accent + '20' }]}>
-                  <Text style={[styles.activeFilterText, { color: theme.colors.accent }]}>
-                    {selectedSort}
-                  </Text>
-                </View>
-              )}
-              <TouchableOpacity
-                style={[styles.clearFiltersButton, { backgroundColor: theme.colors.error + '20' }]}
-                onPress={clearFilters}
-              >
-                <Text style={[styles.clearFiltersText, { color: theme.colors.error }]}>
-                  Clear All
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+        {/* ── Search Bar ── */}
+        <View style={styles.searchSection}>
+          <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Search size={18} color={theme.colors.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text }]}
+              placeholder="Search rewards..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          {/* Sort toggle */}
+          <TouchableOpacity
+            style={[styles.sortToggle, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => setSelectedSort(selectedSort === 'Expiry Date' ? 'Name' : 'Expiry Date')}
+          >
+            <Filter size={16} color={theme.colors.primary} />
+            <Text style={[styles.sortText, { color: theme.colors.primary }]}>{selectedSort}</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* Rewards List */}
-      <ScrollView 
-        style={styles.rewardsList}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.rewardsContainer}>
+        {/* ── Rewards List ── */}
+        <View style={styles.rewardsSection}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Available Rewards
+          </Text>
+
           {loading ? (
-            <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', marginTop: 20 }}>Loading...</Text>
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
           ) : error ? (
-            <Text style={{ color: theme.colors.error, textAlign: 'center', marginTop: 20 }}>{error}</Text>
+            <View style={styles.centerContainer}>
+              <Text style={{ color: theme.colors.error, textAlign: 'center' }}>{error}</Text>
+            </View>
           ) : rewards.length === 0 ? (
-            <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', marginTop: 20 }}>No rewards found.</Text>
+            <View style={styles.centerContainer}>
+              <Gift size={48} color={theme.colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No rewards available right now</Text>
+            </View>
           ) : (
-            rewards.map((reward: any) => {
-              const canAfford = availableBerries >= reward.berries_required;
-              const isClaimed = claimedRewardIds.includes(reward.id?.toString());
-              return (
-                <AnimatedCard 
-                  key={reward.id} 
-                  style={([
-                    styles.rewardCard,
-                    { opacity: canAfford ? 1 : 0.6 }
-                  ] as any)}
-                >
-                  <Image source={{ uri: reward.img_url || '' }} style={styles.rewardImage} />
-                  <View style={styles.rewardContent}>
-                    <View style={styles.rewardHeader}>
-                      <View style={[
-                        styles.categoryTag,
-                        { backgroundColor: theme.colors.secondary + '20' }
-                      ]}>
-                        <Tag size={12} color={theme.colors.secondary} />
-                        <Text style={[styles.categoryTagText, { color: theme.colors.secondary }]}>
-                          {reward.category || 'Reward'}
+            <View style={styles.rewardsGrid}>
+              {rewards.map((reward: any) => {
+                const canAfford = availableBerries >= reward.berries_required;
+                const daysLeft = getDaysUntilExpiry(reward.expiry_date);
+                const isExpiringSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+
+                return (
+                  <AnimatedCard key={reward.id} style={[styles.rewardCard, !canAfford && { opacity: 0.55 }]}>
+                    {/* Expiry badge */}
+                    {isExpiringSoon && (
+                      <View style={[styles.expiryBadge, { backgroundColor: theme.colors.warning + '20' }]}>
+                        <Clock size={10} color={theme.colors.warning} />
+                        <Text style={[styles.expiryBadgeText, { color: theme.colors.warning }]}>
+                          {daysLeft}d left
                         </Text>
                       </View>
-                      <Text style={[
-                        styles.availabilityText, 
-                        { color: theme.colors.textSecondary }
-                      ]}>
-                        {reward.availability || ''}
+                    )}
+
+                    {/* Reward name & category */}
+                    <View style={styles.cardTop}>
+                      <View style={[styles.categoryDot, { backgroundColor: theme.colors.secondary + '30' }]}>
+                        <Tag size={14} color={theme.colors.secondary} />
+                      </View>
+                      <Text style={[styles.categoryLabel, { color: theme.colors.textSecondary }]}>
+                        {reward.category || 'Reward'}
                       </Text>
                     </View>
-                    <Text style={[styles.rewardTitle, { color: theme.colors.text }]}>
+
+                    <Text style={[styles.rewardName, { color: theme.colors.text }]} numberOfLines={2}>
                       {reward.name}
                     </Text>
-                    <Text style={[styles.rewardDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                      {reward.description}
+
+                    <Text style={[styles.rewardDesc, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                      {reward.description || 'No description'}
                     </Text>
-                    <View style={styles.rewardFooter}>
-                      <View style={styles.costContainer}>
-                        <Star size={16} color={theme.colors.accent} />
-                        <Text style={[styles.costText, { color: theme.colors.text }]}> 
-                          {reward.berries_required} berries
+
+                    {/* Cost + Claim row */}
+                    <View style={styles.cardFooter}>
+                      <View style={styles.costRow}>
+                        <Star size={14} color={theme.colors.accent} />
+                        <Text style={[styles.costText, { color: theme.colors.text }]}>
+                          {reward.berries_required}
                         </Text>
                       </View>
-                      {isClaimed ? (
-                        <View style={{ alignItems: 'center', marginTop: 8 }}>
-                          <Text style={{ color: theme.colors.success, fontWeight: 'bold' }}>Reward claimed successfully!</Text>
-                          {claimSuccess && claimSuccess.rewardId === reward.id?.toString() && (
-                            <>
-                              <Text style={{ color: theme.colors.primary, marginTop: 2 }}>Redeem Code:</Text>
-                              <View style={{ backgroundColor: theme.colors.primary + '20', borderRadius: 8, padding: 8, marginTop: 2 }}>
-                                <Text selectable style={{ color: theme.colors.primary, fontSize: 16, fontWeight: 'bold', letterSpacing: 1 }}>{claimSuccess.code}</Text>
-                              </View>
-                              <TouchableOpacity
-                                style={{ backgroundColor: theme.colors.primary, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, marginTop: 8 }}
-                                onPress={() => {
-                                  if (claimSuccess.code) Clipboard.setString(claimSuccess.code);
-                                }}
-                              >
-                                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Copy Code</Text>
-                              </TouchableOpacity>
-                            </>
-                          )}
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          style={[
-                            styles.claimButton,
-                            {
-                              backgroundColor: canAfford 
-                                ? theme.colors.primary 
-                                : theme.colors.border,
-                            }
-                          ]}
-                          onPress={() => handleClaim(reward)}
-                          disabled={!canAfford || claimingId === reward.id}
-                        >
-                          <Text style={[
-                            styles.claimButtonText,
-                            { 
-                              color: canAfford 
-                                ? '#FFFFFF' 
-                                : theme.colors.textSecondary 
-                            }
-                          ]}>
-                            {claimingId === reward.id ? 'Claiming...' : canAfford ? 'Claim' : 'Need More'}
+
+                      <TouchableOpacity
+                        style={[
+                          styles.claimBtn,
+                          {
+                            backgroundColor: canAfford ? theme.colors.primary : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => handleClaim(reward)}
+                        disabled={!canAfford || claimingId === reward.id}
+                        activeOpacity={0.7}
+                      >
+                        {claimingId === reward.id ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={[styles.claimBtnText, { color: canAfford ? '#fff' : theme.colors.textSecondary }]}>
+                            {canAfford ? 'Claim' : 'Need More'}
                           </Text>
-                        </TouchableOpacity>
-                      )}
+                        )}
+                      </TouchableOpacity>
                     </View>
-                    {claimMessage && claimingId === null && !showClaimModal && (
-                      <Text style={{ color: claimSuccess ? theme.colors.success : theme.colors.error, marginTop: 4, textAlign: 'center' }}>{claimMessage}</Text>
-                    )}
-                  </View>
-                </AnimatedCard>
-              );
-            })
+                  </AnimatedCard>
+                );
+              })}
+            </View>
           )}
         </View>
+
+        {/* Bottom spacer for tab bar */}
+        <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* Filter Modal */}
+      {/* ── Claim Success Modal ── */}
       <Modal
-        visible={showFilters}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowFilters(false)}
-      >
-        <View style={styles.modalContainer}>
-          <Pressable 
-            style={styles.modalBackdrop}
-            onPress={() => setShowFilters(false)}
-          />
-          <View style={[styles.filterModal, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.filterHeader, { borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.filterTitle, { color: theme.colors.text }]}>
-                Filter & Sort Rewards
-              </Text>
-              <TouchableOpacity onPress={() => setShowFilters(false)}>
-                <X size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.filterContent}>
-              {/* Category Filter */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterSectionTitle, { color: theme.colors.text }]}>
-                  Category
-                </Text>
-                <View style={styles.filterOptions}>
-                  {categories.map((category) => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.filterOption,
-                        {
-                          backgroundColor: selectedCategory === category 
-                            ? theme.colors.primary + '20' 
-                            : theme.colors.surface,
-                          borderColor: selectedCategory === category 
-                            ? theme.colors.primary 
-                            : theme.colors.border,
-                        }
-                      ]}
-                      onPress={() => setSelectedCategory(category)}
-                    >
-                      <Text style={[
-                        styles.filterOptionText,
-                        { 
-                          color: selectedCategory === category 
-                            ? theme.colors.primary 
-                            : theme.colors.text 
-                        }
-                      ]}>
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Expiry Filter */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterSectionTitle, { color: theme.colors.text }]}>
-                  Expiry Status
-                </Text>
-                <View style={styles.filterOptions}>
-                  {expiryFilters.map((expiry) => (
-                    <TouchableOpacity
-                      key={expiry}
-                      style={[
-                        styles.filterOption,
-                        {
-                          backgroundColor: selectedExpiry === expiry 
-                            ? theme.colors.secondary + '20' 
-                            : theme.colors.surface,
-                          borderColor: selectedExpiry === expiry 
-                            ? theme.colors.secondary 
-                            : theme.colors.border,
-                        }
-                      ]}
-                      onPress={() => setSelectedExpiry(expiry)}
-                    >
-                      <Text style={[
-                        styles.filterOptionText,
-                        { 
-                          color: selectedExpiry === expiry 
-                            ? theme.colors.secondary 
-                            : theme.colors.text 
-                        }
-                      ]}>
-                        {expiry}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Sort Options */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterSectionTitle, { color: theme.colors.text }]}>
-                  Sort By
-                </Text>
-                <View style={styles.filterOptions}>
-                  {sortOptions.map((sort) => (
-                    <TouchableOpacity
-                      key={sort}
-                      style={[
-                        styles.filterOption,
-                        {
-                          backgroundColor: selectedSort === sort 
-                            ? theme.colors.accent + '20' 
-                            : theme.colors.surface,
-                          borderColor: selectedSort === sort 
-                            ? theme.colors.accent 
-                            : theme.colors.border,
-                        }
-                      ]}
-                      onPress={() => setSelectedSort(sort)}
-                    >
-                      <Text style={[
-                        styles.filterOptionText,
-                        { 
-                          color: selectedSort === sort 
-                            ? theme.colors.accent 
-                            : theme.colors.text 
-                        }
-                      ]}>
-                        {sort}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-            
-            <View style={styles.filterActions}>
-              <TouchableOpacity
-                style={[styles.clearButton, { backgroundColor: theme.colors.surface }]}
-                onPress={clearFilters}
-              >
-                <Text style={[styles.clearButtonText, { color: theme.colors.text }]}>
-                  Clear All
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.applyButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => setShowFilters(false)}
-              >
-                <Text style={styles.applyButtonText}>
-                  Apply Filters
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Claim Success Modal */}
-      <RNModal
         visible={showClaimModal && !!claimSuccess}
         transparent
         animationType="fade"
         onRequestClose={() => setShowClaimModal(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: theme.colors.card, borderRadius: 16, padding: 24, alignItems: 'center', width: 300, position: 'relative' }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.colors.card }]}>
+            {/* Close button */}
+            <TouchableOpacity style={styles.modalClose} onPress={() => setShowClaimModal(false)}>
+              <X size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={[styles.modalIconWrap, { backgroundColor: theme.colors.success + '20' }]}>
+              <Gift size={32} color={theme.colors.success} />
+            </View>
+
+            <Text style={[styles.modalTitle, { color: theme.colors.success }]}>Reward Claimed!</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>Your redeem code:</Text>
+
+            <View style={[styles.modalCodeBox, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Text selectable style={[styles.modalCodeText, { color: theme.colors.primary }]}>
+                {claimSuccess?.code}
+              </Text>
+            </View>
+
+            <View style={styles.modalStatsRow}>
+              <View style={styles.modalStat}>
+                <Text style={[styles.modalStatValue, { color: theme.colors.text }]}>{claimSuccess?.remaining}</Text>
+                <Text style={[styles.modalStatLabel, { color: theme.colors.textSecondary }]}>Berries Left</Text>
+              </View>
+            </View>
+
             <TouchableOpacity
-              style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, padding: 4 }}
+              style={[styles.modalDoneBtn, { backgroundColor: theme.colors.primary }]}
               onPress={() => setShowClaimModal(false)}
             >
-              <Text style={{ fontSize: 20, color: theme.colors.textSecondary }}>×</Text>
+              <Text style={styles.modalDoneBtnText}>Done</Text>
             </TouchableOpacity>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.success, marginBottom: 8 }}>Reward Claimed!</Text>
-            <Text style={{ color: theme.colors.text, marginBottom: 8 }}>Redeem Code:</Text>
-            <View style={{ backgroundColor: theme.colors.primary + '20', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-              <Text selectable style={{ color: theme.colors.primary, fontSize: 18, fontWeight: 'bold', letterSpacing: 1 }}>{claimSuccess?.code}</Text>
-            </View>
-            <TouchableOpacity
-              style={{ backgroundColor: theme.colors.primary, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 }}
-              onPress={() => {
-                if (claimSuccess?.code) Clipboard.setString(claimSuccess.code);
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Copy Code</Text>
-            </TouchableOpacity>
-            <Text style={{ color: theme.colors.textSecondary, marginBottom: 8 }}>Remaining Berries: {claimSuccess?.remaining}</Text>
           </View>
         </View>
-      </RNModal>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  pointsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  pointsCard: {
+  container: { flex: 1 },
+  mainScroll: { flex: 1 },
+
+  /* ── Balance Strip ── */
+  balanceStrip: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
+  balanceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-  },
-  pointsInfo: {
-    flex: 1,
-  },
-  pointsLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    opacity: 0.9,
-  },
-  pointsValue: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    marginTop: 4,
-  },
-  statsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-  },
-  statContent: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-  },
-  searchSection: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    gap: 12,
   },
-  searchInput: {
+  balanceLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  balanceIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  balanceLabel: { fontSize: 12, fontFamily: 'Inter-Regular' },
+  balanceValue: { fontSize: 22, fontFamily: 'Poppins-Bold' },
+  balanceUnit: { fontSize: 14, fontFamily: 'Inter-Regular' },
+
+  /* ── Chips ── */
+  chipRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, paddingTop: 10, paddingBottom: 6 },
+  chip: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-  },
-  filterButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  sortButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  activeFiltersContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  activeFilters: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  activeFilter: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  activeFilterText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-  },
-  clearFiltersButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  clearFiltersText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-  },
-  rewardsList: {
-    flex: 1,
-  },
-  rewardsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 16,
-  },
-  rewardCard: {
-    marginBottom: 0,
-  },
-  rewardImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  rewardContent: {
-    gap: 12,
-  },
-  rewardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
-  },
-  categoryTagText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-    textTransform: 'capitalize',
-  },
-  availabilityText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-  },
-  rewardTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  rewardDescription: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
-  rewardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  costContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  costText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  claimButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  claimButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  filterModal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  filterHeader: {
+  chipValue: { fontSize: 16, fontFamily: 'Poppins-Bold' },
+  chipLabel: { fontSize: 12, fontFamily: 'Inter-Regular', flex: 1 },
+
+  /* ── Search ── */
+  searchSection: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6, gap: 8 },
+  searchBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
   },
-  filterTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  filterContent: {
-    padding: 20,
-  },
-  filterSection: {
-    marginBottom: 24,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 12,
-  },
-  filterOptions: {
+  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Inter-Regular' },
+  sortToggle: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterOption: {
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
   },
-  filterOptionText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-  },
-  filterActions: {
+  sortText: { fontSize: 12, fontFamily: 'Inter-SemiBold' },
+
+  /* ── Rewards Grid ── */
+  rewardsSection: { paddingHorizontal: 20, paddingTop: 10 },
+  sectionTitle: { fontSize: 18, fontFamily: 'Poppins-SemiBold', marginBottom: 12 },
+  rewardsGrid: { gap: 12 },
+  centerContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12 },
+  emptyText: { fontSize: 15, fontFamily: 'Inter-Regular' },
+
+  /* ── Reward Card ── */
+  rewardCard: { marginBottom: 0, position: 'relative' },
+  expiryBadge: {
     flexDirection: 'row',
-    padding: 20,
-    gap: 12,
-  },
-  clearButton: {
-    flex: 1,
-    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 8,
+    marginBottom: 8,
+  },
+  expiryBadgeText: { fontSize: 11, fontFamily: 'Inter-SemiBold' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  categoryDot: {
+    width: 26, height: 26, borderRadius: 13,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  categoryLabel: { fontSize: 12, fontFamily: 'Inter-Medium', textTransform: 'capitalize' },
+  rewardName: { fontSize: 16, fontFamily: 'Poppins-SemiBold', marginBottom: 4 },
+  rewardDesc: { fontSize: 13, fontFamily: 'Inter-Regular', lineHeight: 18, marginBottom: 10 },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150,150,150,0.2)',
+    paddingTop: 10,
+  },
+  costRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  costText: { fontSize: 16, fontFamily: 'Poppins-Bold' },
+  claimBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 10,
+    minWidth: 90,
     alignItems: 'center',
   },
-  clearButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  applyButton: {
+  claimBtnText: { fontSize: 14, fontFamily: 'Inter-SemiBold' },
+
+  /* ── Modal ── */
+  modalOverlay: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  applyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+  modalCard: {
+    width: 310,
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    position: 'relative',
   },
+  modalClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    padding: 4,
+  },
+  modalIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: { fontSize: 22, fontFamily: 'Poppins-Bold', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, fontFamily: 'Inter-Regular', marginBottom: 10 },
+  modalCodeBox: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  modalCodeText: { fontSize: 20, fontFamily: 'Inter-Bold', letterSpacing: 2 },
+  modalStatsRow: { flexDirection: 'row', marginBottom: 18 },
+  modalStat: { alignItems: 'center' },
+  modalStatValue: { fontSize: 22, fontFamily: 'Poppins-Bold' },
+  modalStatLabel: { fontSize: 12, fontFamily: 'Inter-Regular' },
+  modalDoneBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalDoneBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Inter-SemiBold' },
 });

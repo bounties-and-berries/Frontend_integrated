@@ -1,11 +1,11 @@
+import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  Image,
+  TouchableOpacity
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getClaimedRewards, searchRewards } from '@/utils/api';

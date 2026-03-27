@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
@@ -6,8 +7,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
-  Image,
+  Alert
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import AnimatedCard from '@/components/AnimatedCard';
@@ -15,13 +15,12 @@ import TopMenuBar from '@/components/TopMenuBar';
 import { 
   Upload, 
   Calendar, 
-  FileText, 
   Award, 
-  Camera,
   CheckCircle,
   Clock,
   XCircle
 } from 'lucide-react-native';
+import { useSubmitPointRequest, usePointRequests } from '@/hooks/useStudent';
 
 const categories = [
   { id: 'academic', label: 'Academic Achievement', points: '50-200' },
@@ -32,81 +31,52 @@ const categories = [
   { id: 'other', label: 'Other Activity', points: '20-100' },
 ];
 
-// Mock previous requests
-const mockRequests = [
-  {
-    id: '1',
-    title: 'Volunteer at Animal Shelter',
-    category: 'volunteer',
-    description: 'Volunteered for 8 hours at local animal shelter',
-    pointsRequested: 120,
-    status: 'approved',
-    submittedDate: '2024-02-20',
-    reviewedDate: '2024-02-22',
-    reviewedBy: 'Dr. Smith',
-  },
-  {
-    id: '2',
-    title: 'Won Chess Tournament',
-    category: 'sports',
-    description: 'First place in inter-college chess championship',
-    pointsRequested: 200,
-    status: 'pending',
-    submittedDate: '2024-02-25',
-  },
-  {
-    id: '3',
-    title: 'Organized Blood Drive',
-    category: 'leadership',
-    description: 'Led organization of campus blood donation drive',
-    pointsRequested: 300,
-    status: 'rejected',
-    submittedDate: '2024-02-18',
-    reviewedDate: '2024-02-20',
-    reviewedBy: 'Dr. Johnson',
-    rejectionReason: 'Insufficient documentation provided',
-  },
-];
-
 export default function RequestPoints() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('new');
   const [formData, setFormData] = useState({
     title: '',
-    category: '',
+    category: 'academic',
     description: '',
     pointsRequested: '',
-    activityDate: '',
-    proofDescription: '',
+    activityDate: new Date().toISOString().split('T')[0],
+    proofDescription: 'Self-declaration',
   });
 
-  const handleSubmit = () => {
+  const { data: requests = [], isLoading: loadingHistory } = usePointRequests();
+  const submitRequest = useSubmitPointRequest();
+
+  const handleSubmit = async () => {
     if (!formData.title || !formData.category || !formData.description || !formData.pointsRequested) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    Alert.alert(
-      'Submit Request',
-      'Are you sure you want to submit this point request?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Submit', 
-          onPress: () => {
-            Alert.alert('Success', 'Your point request has been submitted for review!');
-            setFormData({
-              title: '',
-              category: '',
-              description: '',
-              pointsRequested: '',
-              activityDate: '',
-              proofDescription: '',
-            });
-          }
-        }
-      ]
-    );
+    try {
+        await submitRequest.mutateAsync({
+          activity_title: formData.title,
+          category: formData.category,
+          description: formData.description,
+          points_requested: parseInt(formData.pointsRequested),
+          berries_requested: Math.floor(parseInt(formData.pointsRequested) / 10),
+          activity_date: formData.activityDate,
+          proof_description: formData.proofDescription,
+          faculty_id: 2 // Demo faculty
+        });
+
+        Alert.alert('Success', 'Your point request has been submitted for review!');
+        setFormData({
+            title: '',
+            category: 'academic',
+            description: '',
+            pointsRequested: '',
+            activityDate: new Date().toISOString().split('T')[0],
+            proofDescription: 'Self-declaration',
+        });
+        setActiveTab('history');
+    } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to submit request');
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -354,16 +324,20 @@ export default function RequestPoints() {
           </View>
         ) : (
           <View style={styles.historyContainer}>
-            {mockRequests.map((request) => (
+            {loadingHistory ? (
+                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', padding: 20 }}>Loading history...</Text>
+            ) : requests.length === 0 ? (
+                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', padding: 20 }}>No point requests yet.</Text>
+            ) : requests.map((request: any) => (
               <AnimatedCard key={request.id} style={styles.requestCard}>
                 <View style={styles.requestContent}>
                   <View style={styles.requestHeader}>
                     <View style={styles.requestInfo}>
                       <Text style={[styles.requestTitle, { color: theme.colors.text }]}>
-                        {request.title}
+                        {request.activity_title}
                       </Text>
                       <Text style={[styles.requestCategory, { color: theme.colors.textSecondary }]}>
-                        {categories.find(c => c.id === request.category)?.label}
+                        {categories.find(c => c.id === request.category)?.label || request.category}
                       </Text>
                     </View>
                     <View style={[
@@ -388,31 +362,31 @@ export default function RequestPoints() {
                     <View style={styles.requestDetail}>
                       <Award size={14} color={theme.colors.primary} />
                       <Text style={[styles.requestDetailText, { color: theme.colors.primary }]}>
-                        {request.pointsRequested} points requested
+                        {request.points_requested} points requested
                       </Text>
                     </View>
                     
                     <View style={styles.requestDetail}>
                       <Calendar size={14} color={theme.colors.textSecondary} />
                       <Text style={[styles.requestDetailText, { color: theme.colors.textSecondary }]}>
-                        Submitted: {new Date(request.submittedDate).toLocaleDateString()}
+                        Submitted: {new Date(request.created_on).toLocaleDateString()}
                       </Text>
                     </View>
                     
-                    {request.reviewedDate && (
+                    {request.approval_date && (
                       <View style={styles.requestDetail}>
                         <CheckCircle size={14} color={theme.colors.textSecondary} />
                         <Text style={[styles.requestDetailText, { color: theme.colors.textSecondary }]}>
-                          Reviewed: {new Date(request.reviewedDate).toLocaleDateString()}
+                          Reviewed: {new Date(request.approval_date).toLocaleDateString()}
                         </Text>
                       </View>
                     )}
                   </View>
                   
-                  {request.rejectionReason && (
-                    <View style={[styles.rejectionReason, { backgroundColor: theme.colors.error + '10' }]}>
-                      <Text style={[styles.rejectionText, { color: theme.colors.error }]}>
-                        Reason: {request.rejectionReason}
+                  {request.faculty_comment && (
+                    <View style={[styles.rejectionReason, { backgroundColor: request.status === 'approved' ? theme.colors.success + '10' : theme.colors.error + '10' }]}>
+                      <Text style={[styles.rejectionText, { color: request.status === 'approved' ? theme.colors.success : theme.colors.error }]}>
+                        Note: {request.faculty_comment}
                       </Text>
                     </View>
                   )}

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import {
   View,
@@ -5,7 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  TextInput,
+  RefreshControl
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { mockUsers, mockTransactions, mockEvents } from '@/data/mockData';
@@ -13,54 +15,89 @@ import { Student } from '@/types';
 import GradientCard from '@/components/GradientCard';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { TrendingUp, Users, Award, ChartBar as BarChart3, Calendar, Activity, Target } from 'lucide-react-native';
-
-const { width } = Dimensions.get('window');
-
-const departmentFilters = ['All', 'Computer Science', 'Engineering', 'Business', 'Arts'];
-const categoryFilters = ['All', 'Academic', 'Cultural', 'Volunteer', 'Attendance'];
+import { PieChart } from 'react-native-svg-charts';
+import { TrendingUp, Award, BarChart3, Calendar, Activity, Target, Search } from 'lucide-react-native';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useAdminDashboard } from '@/hooks/useAdmin';
 
 export default function AdminDashboard() {
   const { theme } = useTheme();
-  const [selectedDepartment, setSelectedDepartment] = useState('All');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  
+  const [searchQuery, setSearchQuery] = useState('');
+  const { isMobile, select, width } = useResponsive();
+  const { data: dashboardData, isLoading, refetch } = useAdminDashboard();
+
+  const styles = getStyles(theme, isMobile, width);
+
+  // Fallback to empty defaults while loading
+  const displayData = dashboardData || {
+    berriesAvailable: 0,
+    categoryBreakdown: [],
+    approvedPoints: 0,
+    pendingRequests: 0,
+    topStudents: []
+  };
+
   const students = mockUsers.filter(user => user.role === 'student') as Student[];
   const faculty = mockUsers.filter(user => user.role === 'faculty');
-  
-  const totalPoints = mockTransactions
+
+  const activeStudents = dashboardData?.activeUsers || 0;
+  const berriesRedeemed = dashboardData?.berriesRedeemed || 0;
+  const completedEventsCount = dashboardData?.completedEvents || 0;
+  const activeEventsCount = dashboardData?.activeEvents || 0;
+  const departmentStats = dashboardData?.departmentBreakdown || [];
+
+  // Filter transactions based on search query
+  const filteredTransactions = mockTransactions
     .filter(t => t.type === 'earned')
-    .reduce((sum, t) => sum + t.points, 0);
-  
-  const avgPointsPerStudent = Math.round(totalPoints / students.length);
-  const activeEvents = mockEvents.length;
-  const completedEvents = 12; // Mock data
+    .filter(t => {
+      if (!searchQuery) return true;
+      return t.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.type?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
-  const departmentStats = [
-    { name: 'Computer Science', students: 45, points: 12500 },
-    { name: 'Engineering', students: 38, points: 9800 },
-    { name: 'Business', students: 32, points: 8200 },
-    { name: 'Arts', students: 25, points: 6100 },
-  ];
-
-  // Filter transactions based on selected category
-  const filteredTransactions = selectedCategory === 'All' 
-    ? mockTransactions.filter(t => t.type === 'earned')
-    : mockTransactions.filter(t => t.type === 'earned' && t.category === selectedCategory.toLowerCase());
+  // Prepare data for pie chart
+  const categoryData = displayData.categoryBreakdown?.length > 0 
+    ? displayData.categoryBreakdown.map((item: any, index: number) => ({
+        key: index + 1,
+        value: Number(item.value) || 0,
+        svg: { fill: [ '#6366F1', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444' ][index % 5] },
+        label: item.name
+      }))
+    : [
+        { key: 1, value: 30, svg: { fill: '#6366F1' }, label: 'Academic' },
+        { key: 2, value: 25, svg: { fill: '#8B5CF6' }, label: 'Cultural' },
+        { key: 3, value: 20, svg: { fill: '#10B981' }, label: 'Volunteer' },
+        { key: 4, value: 15, svg: { fill: '#F59E0B' }, label: 'Attendance' },
+        { key: 5, value: 10, svg: { fill: '#EF4444' }, label: 'Achievement' },
+      ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Menu Bar */}
-      <TopMenuBar 
+      <TopMenuBar
         title="Analytics Dashboard"
         subtitle="College-wide performance insights"
       />
 
-      <ScrollView 
+      <View style={styles.searchSection}>
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Search size={20} color={theme.colors.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: theme.colors.text }]}
+            placeholder="Search users or categories..."
+            placeholderTextColor={theme.colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </View>
+
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={theme.colors.primary} />
+        }
       >
-        {/* Overview Cards */}
         <View style={styles.section}>
           <GradientCard gradientColors={theme.colors.gradient.primary}>
             <View style={styles.overviewCard}>
@@ -71,26 +108,33 @@ export default function AdminDashboard() {
               <View style={styles.overviewGrid}>
                 <View style={styles.overviewStat}>
                   <Text style={styles.overviewStatValue}>{students.length}</Text>
-                  <Text style={styles.overviewStatLabel}>Total Students</Text>
+                  <Text style={styles.overviewStatLabel}>Students</Text>
                 </View>
                 <View style={styles.overviewStat}>
                   <Text style={styles.overviewStatValue}>{faculty.length}</Text>
-                  <Text style={styles.overviewStatLabel}>Faculty Members</Text>
+                  <Text style={styles.overviewStatLabel}>Faculty</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{totalPoints.toLocaleString()}</Text>
-                  <Text style={styles.overviewStatLabel}>Total Berries</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.overviewStatValue}>{berriesRedeemed.toLocaleString()}</Text>
+                    <Image
+                      /* @ts-ignore-Image path exists */
+                      source={require('@/assets/images/berry.png')}
+                      style={{ width: 16, height: 16 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.overviewStatLabel}>Berries Redeemed</Text>
                 </View>
                 <View style={styles.overviewStat}>
-                  <Text style={styles.overviewStatValue}>{avgPointsPerStudent}</Text>
-                  <Text style={styles.overviewStatLabel}>Avg per Student</Text>
+                  <Text style={styles.overviewStatValue}>{activeStudents}</Text>
+                  <Text style={styles.overviewStatLabel}>Active Students</Text>
                 </View>
               </View>
             </View>
           </GradientCard>
         </View>
 
-        {/* Key Metrics */}
         <View style={styles.section}>
           <View style={styles.metricsGrid}>
             <AnimatedCard style={styles.metricCard}>
@@ -99,99 +143,64 @@ export default function AdminDashboard() {
                   <TrendingUp size={20} color={theme.colors.success} />
                 </View>
                 <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  1250
+                  {displayData.approvedPoints.toLocaleString()}
                 </Text>
                 <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Berries Redeemed
+                  Total Points Awarded
                 </Text>
               </View>
             </AnimatedCard>
-            
+
             <AnimatedCard style={styles.metricCard}>
               <View style={styles.metricContent}>
                 <View style={[styles.metricIcon, { backgroundColor: theme.colors.primary + '20' }]}>
                   <Activity size={20} color={theme.colors.primary} />
                 </View>
                 <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  89%
+                  {displayData.pendingRequests}
                 </Text>
                 <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Active Users
+                  Pending Requests
                 </Text>
               </View>
             </AnimatedCard>
-            
+
             <AnimatedCard style={styles.metricCard}>
               <View style={styles.metricContent}>
                 <View style={[styles.metricIcon, { backgroundColor: theme.colors.accent + '20' }]}>
                   <Calendar size={20} color={theme.colors.accent} />
                 </View>
                 <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  {activeEvents}
+                  {activeEventsCount}
                 </Text>
                 <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Active Bounties
+                  Active Events
                 </Text>
               </View>
             </AnimatedCard>
-            
+
             <AnimatedCard style={styles.metricCard}>
               <View style={styles.metricContent}>
                 <View style={[styles.metricIcon, { backgroundColor: theme.colors.secondary + '20' }]}>
                   <Target size={20} color={theme.colors.secondary} />
                 </View>
                 <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  {completedEvents}
+                  {completedEventsCount}
                 </Text>
                 <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Completed
+                  Completed Events
                 </Text>
               </View>
             </AnimatedCard>
           </View>
         </View>
 
-        {/* Department Filter */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Department Analysis
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.filterButtons}>
-              {departmentFilters.map((department) => (
-                <TouchableOpacity
-                  key={department}
-                  style={[
-                    styles.filterButton,
-                    {
-                      backgroundColor: selectedDepartment === department 
-                        ? theme.colors.primary 
-                        : theme.colors.surface,
-                      borderColor: theme.colors.border,
-                    }
-                  ]}
-                  onPress={() => setSelectedDepartment(department)}
-                >
-                  <Text style={[
-                    styles.filterButtonText,
-                    { 
-                      color: selectedDepartment === department 
-                        ? '#FFFFFF' 
-                        : theme.colors.textSecondary 
-                    }
-                  ]}>
-                    {department}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-
-        {/* Department Stats */}
-        <View style={styles.section}>
           <View style={styles.departmentList}>
-            {departmentStats.map((dept) => (
+            {departmentStats.map((dept: any) => (
               <AnimatedCard key={dept.name} style={styles.departmentCard}>
                 <View style={styles.departmentContent}>
                   <View style={styles.departmentInfo}>
@@ -204,22 +213,22 @@ export default function AdminDashboard() {
                   </View>
                   <View style={styles.departmentStats}>
                     <Text style={[styles.departmentPoints, { color: theme.colors.primary }]}>
-                      {dept.points.toLocaleString()}
+                      {Number(dept.total_points).toLocaleString()}
                     </Text>
                     <Text style={[styles.departmentPointsLabel, { color: theme.colors.textSecondary }]}>
-                      total berries
+                      total points
                     </Text>
                   </View>
                   <View style={styles.departmentProgress}>
                     <View style={[styles.progressBar, { backgroundColor: theme.colors.border }]}>
-                      <View 
+                      <View
                         style={[
-                          styles.progressFill, 
-                          { 
-                            width: `${(dept.points / 15000) * 100}%`,
-                            backgroundColor: theme.colors.primary 
+                          styles.progressFill,
+                          {
+                            width: `${Math.min((Number(dept.total_points) / 50000) * 100, 100)}%`,
+                            backgroundColor: theme.colors.primary
                           }
-                        ]} 
+                        ]}
                       />
                     </View>
                   </View>
@@ -229,49 +238,40 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Category Filter */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Berry Distribution by Category
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.filterButtons}>
-              {categoryFilters.map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.filterButton,
-                    {
-                      backgroundColor: selectedCategory === category 
-                        ? theme.colors.primary 
-                        : theme.colors.surface,
-                      borderColor: theme.colors.border,
-                    }
-                  ]}
-                  onPress={() => setSelectedCategory(category)}
-                >
-                  <Text style={[
-                    styles.filterButtonText,
-                    { 
-                      color: selectedCategory === category 
-                        ? '#FFFFFF' 
-                        : theme.colors.textSecondary 
-                    }
-                  ]}>
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+
+          <AnimatedCard style={styles.chartCard}>
+            <View style={styles.chartContainer}>
+              <PieChart
+                style={styles.chart}
+                data={categoryData}
+                innerRadius={isMobile ? 40 : 60}
+                outerRadius={isMobile ? 70 : 100}
+                labelRadius={isMobile ? 80 : 120}
+                padAngle={0.02}
+              />
+              <View style={styles.chartLegend}>
+                {categoryData.map((item: any, index: number) => (
+                  <View key={item.key} style={styles.legendItem}>
+                    <View style={[styles.legendColor, { backgroundColor: item.svg.fill }]} />
+                    <Text style={[styles.legendText, { color: theme.colors.text }]}>
+                      {item.label}: {item.value || 0}%
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </ScrollView>
+          </AnimatedCard>
         </View>
 
-        {/* Recent Transactions */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Recent Berry Awards
+            Recent Awards
           </Text>
-          
+
           <View style={styles.transactionsList}>
             {filteredTransactions
               .slice(0, 8)
@@ -286,15 +286,15 @@ export default function AdminDashboard() {
                     </View>
                     <View style={styles.transactionInfo}>
                       <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
-                        {transaction.description}
+                        {transaction.reason}
                       </Text>
                       <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
                         {new Date(transaction.date).toLocaleDateString()}
-                        {transaction.category && ` • ${transaction.category}`}
+                        {transaction.type && ` • ${transaction.type}`}
                       </Text>
                     </View>
                     <Text style={[styles.transactionPoints, { color: theme.colors.success }]}>
-                      +{transaction.points}
+                      +{transaction.amount}
                     </Text>
                   </View>
                 </AnimatedCard>
@@ -306,12 +306,30 @@ export default function AdminDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isMobile: boolean, width: number) => StyleSheet.create({
   container: {
     flex: 1,
   },
   content: {
     flex: 1,
+  },
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
   },
   section: {
     paddingHorizontal: 20,
@@ -339,7 +357,7 @@ const styles = StyleSheet.create({
   overviewStat: {
     alignItems: 'center',
     gap: 4,
-    width: '45%',
+    width: isMobile ? '45%' : '22%',
   },
   overviewStatValue: {
     color: '#FFFFFF',
@@ -359,7 +377,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   metricCard: {
-    width: (width - 64) / 2,
+    width: isMobile ? (width - 52) / 2 : (width - 64) / 2,
+    minHeight: 44,
   },
   metricContent: {
     alignItems: 'center',
@@ -385,20 +404,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 16,
-  },
-  filterButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
   },
   departmentList: {
     gap: 12,
@@ -477,5 +482,36 @@ const styles = StyleSheet.create({
   transactionPoints: {
     fontSize: 14,
     fontFamily: 'Poppins-Bold',
+  },
+  chartCard: {
+    marginBottom: 0,
+  },
+  chartContainer: {
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 20,
+  },
+  chart: {
+    height: isMobile ? 150 : 200,
+    width: isMobile ? 150 : 200,
+  },
+  chartLegend: {
+    flex: 1,
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  legendText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
   },
 });

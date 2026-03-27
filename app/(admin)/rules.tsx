@@ -12,81 +12,40 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import AnimatedCard from '@/components/AnimatedCard';
 import TopMenuBar from '@/components/TopMenuBar';
-import { Plus, Search, Shield, Award, Calendar, Users, BookOpen, CreditCard as Edit, Trash2 } from 'lucide-react-native';
-
-interface BerryRule {
-  id: string;
-  category: string;
-  activity: string;
-  berries: number;
-  maxPerDay?: number;
-  maxPerMonth?: number;
-  description: string;
-  icon: any;
-  color: string;
-}
-
-const mockRules: BerryRule[] = [
-  {
-    id: '1',
-    category: 'Academic',
-    activity: 'Perfect Attendance',
-    berries: 10,
-    maxPerDay: 1,
-    description: 'Attending all classes in a day',
-    icon: BookOpen,
-    color: '#6366F1',
-  },
-  {
-    id: '2',
-    category: 'Academic',
-    activity: 'Assignment Submission',
-    berries: 5,
-    maxPerDay: 3,
-    description: 'Submitting assignments on time',
-    icon: BookOpen,
-    color: '#6366F1',
-  },
-  {
-    id: '3',
-    category: 'Cultural',
-    activity: 'Bounty Participation',
-    berries: 50,
-    maxPerMonth: 5,
-    description: 'Participating in cultural bounties',
-    icon: Calendar,
-    color: '#8B5CF6',
-  },
-  {
-    id: '4',
-    category: 'Volunteer',
-    activity: 'Community Service',
-    berries: 100,
-    maxPerMonth: 3,
-    description: 'Volunteering for community activities',
-    icon: Users,
-    color: '#10B981',
-  },
-  {
-    id: '5',
-    category: 'Achievement',
-    activity: 'Competition Winner',
-    berries: 200,
-    description: 'Winning academic or cultural competitions',
-    icon: Award,
-    color: '#F59E0B',
-  },
-];
+import { Plus, Search, Shield, Award, Calendar, Users, BookOpen, CreditCard as Edit, Trash2, Trophy } from 'lucide-react-native';
+import { useResponsive } from '@/hooks/useResponsive';
+import { getAllRules, deleteRule } from '@/utils/api';
 
 export default function AdminRules() {
   const { theme } = useTheme();
   const router = useRouter();
-  const [rules, setRules] = useState(mockRules);
+  const [rules, setRules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const { isMobile } = useResponsive();
+
+  const styles = getStyles(theme, isMobile);
+
+  const fetchRules = async () => {
+    setLoading(true);
+    try {
+      const response = await getAllRules();
+      setRules(response.data || []);
+    } catch (error) {
+      console.error('Error fetching rules:', error);
+      Alert.alert('Error', 'Failed to fetch berry rules');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchRules();
+  }, []);
+
   const filteredRules = rules.filter(rule =>
-    rule.activity.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    rule.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (rule.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (rule.category || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddRule = () => {
@@ -94,7 +53,10 @@ export default function AdminRules() {
   };
 
   const handleEditRule = (ruleId: string) => {
-    Alert.alert('Edit Rule', `Edit rule ${ruleId} - Feature coming soon.`);
+    router.push({
+      pathname: '/(admin)/edit-rule',
+      params: { id: ruleId }
+    } as any);
   };
 
   const handleDeleteRule = (ruleId: string) => {
@@ -103,12 +65,17 @@ export default function AdminRules() {
       'Are you sure you want to delete this rule?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setRules(prev => prev.filter(rule => rule.id !== ruleId));
-            Alert.alert('Success', 'Rule deleted successfully!');
+          onPress: async () => {
+            try {
+              await deleteRule(ruleId);
+              setRules(prev => prev.filter(rule => rule.id !== ruleId));
+              Alert.alert('Success', 'Rule deleted successfully!');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete rule');
+            }
           }
         }
       ]
@@ -120,27 +87,45 @@ export default function AdminRules() {
       acc[rule.category] = (acc[rule.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     return Object.entries(stats).map(([category, count]) => ({
       category,
       count,
       totalBerries: rules
         .filter(r => r.category === category)
-        .reduce((sum, r) => sum + r.berries, 0)
+        .reduce((sum, r) => sum + (r.points || 0), 0)
     }));
   };
 
   const categoryStats = getCategoryStats();
 
+  const getCategoryIcon = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'academic': return BookOpen;
+      case 'cultural': return Trophy;
+      case 'volunteer': return Users;
+      case 'achievement': return Award;
+      default: return Shield;
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'academic': return '#6366F1';
+      case 'cultural': return '#8B5CF6';
+      case 'volunteer': return '#10B981';
+      case 'achievement': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Top Menu Bar */}
-      <TopMenuBar 
+      <TopMenuBar
         title="Berry Rules"
         subtitle="Manage berry allocation rules"
       />
 
-      {/* Add Button */}
       <View style={styles.addButtonContainer}>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
@@ -151,7 +136,6 @@ export default function AdminRules() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchSection}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <Search size={20} color={theme.colors.textSecondary} />
@@ -165,11 +149,10 @@ export default function AdminRules() {
         </View>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Category Overview */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Category Overview
@@ -193,12 +176,11 @@ export default function AdminRules() {
           </View>
         </View>
 
-        {/* Rules List */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             All Rules
           </Text>
-          
+
           <View style={styles.rulesList}>
             {filteredRules.length === 0 ? (
               <AnimatedCard style={styles.emptyCard}>
@@ -208,79 +190,84 @@ export default function AdminRules() {
                     No Rules Found
                   </Text>
                   <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                    Create your first berry rule to get started.
+                    {loading ? 'Fetching rules...' : 'Create your first berry rule to get started.'}
                   </Text>
                 </View>
               </AnimatedCard>
             ) : (
-              filteredRules.map((rule) => (
-                <AnimatedCard key={rule.id} style={styles.ruleCard}>
-                  <View style={styles.ruleContent}>
-                    <View style={styles.ruleLeft}>
-                      <View style={[
-                        styles.ruleIcon,
-                        { backgroundColor: rule.color + '20' }
-                      ]}>
-                        <rule.icon size={20} color={rule.color} />
-                      </View>
-                      <View style={styles.ruleInfo}>
-                        <Text style={[styles.ruleActivity, { color: theme.colors.text }]}>
-                          {rule.activity}
-                        </Text>
-                        <Text style={[styles.ruleDescription, { color: theme.colors.textSecondary }]}>
-                          {rule.description}
-                        </Text>
-                        <View style={styles.ruleMeta}>
-                          <View style={[
-                            styles.categoryTag,
-                            { backgroundColor: rule.color + '20' }
-                          ]}>
-                            <Text style={[styles.categoryTagText, { color: rule.color }]}>
-                              {rule.category}
-                            </Text>
+              filteredRules.map((rule) => {
+                const Icon = getCategoryIcon(rule.category);
+                const categoryColor = getCategoryColor(rule.category);
+                
+                return (
+                  <AnimatedCard key={rule.id} style={styles.ruleCard}>
+                    <View style={styles.ruleContent}>
+                      <View style={styles.ruleLeft}>
+                        <View style={[
+                          styles.ruleIcon,
+                          { backgroundColor: categoryColor + '20' }
+                        ]}>
+                          <Icon size={20} color={categoryColor} />
+                        </View>
+                        <View style={styles.ruleInfo}>
+                          <Text style={[styles.ruleActivity, { color: theme.colors.text }]}>
+                            {rule.name}
+                          </Text>
+                          <Text style={[styles.ruleDescription, { color: theme.colors.textSecondary }]}>
+                            {rule.description}
+                          </Text>
+                          <View style={styles.ruleMeta}>
+                            <View style={[
+                              styles.categoryTag,
+                              { backgroundColor: categoryColor + '20' }
+                            ]}>
+                              <Text style={[styles.categoryTagText, { color: categoryColor }]}>
+                                {rule.category}
+                              </Text>
+                            </View>
+                            {rule.per_day_limit > 0 && (
+                              <Text style={[styles.limitText, { color: theme.colors.textSecondary }]}>
+                                Max {rule.per_day_limit}/day
+                              </Text>
+                            )}
+                            {rule.per_month_limit > 0 && (
+                              <Text style={[styles.limitText, { color: theme.colors.textSecondary }]}>
+                                Max {rule.per_month_limit}/month
+                              </Text>
+                            )}
                           </View>
-                          {rule.maxPerDay && (
-                            <Text style={[styles.limitText, { color: theme.colors.textSecondary }]}>
-                              Max {rule.maxPerDay}/day
-                            </Text>
-                          )}
-                          {rule.maxPerMonth && (
-                            <Text style={[styles.limitText, { color: theme.colors.textSecondary }]}>
-                              Max {rule.maxPerMonth}/month
-                            </Text>
-                          )}
+                        </View>
+                      </View>
+
+                      <View style={styles.ruleRight}>
+                        <View style={styles.berriesBadge}>
+                          <Text style={[styles.berriesText, { color: theme.colors.primary }]}>
+                            +{rule.points}
+                          </Text>
+                          <Text style={[styles.berriesLabel, { color: theme.colors.textSecondary }]}>
+                            points
+                          </Text>
+                        </View>
+
+                        <View style={styles.ruleActions}>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: theme.colors.secondary + '20' }]}
+                            onPress={() => handleEditRule(rule.id)}
+                          >
+                            <Edit size={14} color={theme.colors.secondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: theme.colors.error + '20' }]}
+                            onPress={() => handleDeleteRule(rule.id)}
+                          >
+                            <Trash2 size={14} color={theme.colors.error} />
+                          </TouchableOpacity>
                         </View>
                       </View>
                     </View>
-                    
-                    <View style={styles.ruleRight}>
-                      <View style={styles.berriesBadge}>
-                        <Text style={[styles.berriesText, { color: theme.colors.primary }]}>
-                          +{rule.berries}
-                        </Text>
-                        <Text style={[styles.berriesLabel, { color: theme.colors.textSecondary }]}>
-                          berries
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.ruleActions}>
-                        <TouchableOpacity
-                          style={[styles.actionButton, { backgroundColor: theme.colors.secondary + '20' }]}
-                          onPress={() => handleEditRule(rule.id)}
-                        >
-                          <Edit size={14} color={theme.colors.secondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.actionButton, { backgroundColor: theme.colors.error + '20' }]}
-                          onPress={() => handleDeleteRule(rule.id)}
-                        >
-                          <Trash2 size={14} color={theme.colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </AnimatedCard>
-              ))
+                  </AnimatedCard>
+                );
+              })
             )}
           </View>
         </View>
@@ -289,7 +276,7 @@ export default function AdminRules() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -304,6 +291,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
+    minHeight: 44,
   },
   addButtonText: {
     color: '#FFFFFF',
@@ -322,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     gap: 12,
+    minHeight: 44,
   },
   searchInput: {
     flex: 1,
@@ -346,7 +335,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryCard: {
-    width: '48%',
+    width: isMobile ? '100%' : '48%',
+    minHeight: 44,
   },
   categoryContent: {
     alignItems: 'center',
@@ -388,9 +378,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   ruleContent: {
-    flexDirection: 'row',
+    flexDirection: isMobile ? 'column' : 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: isMobile ? 16 : 0,
   },
   ruleLeft: {
     flexDirection: 'row',
@@ -437,7 +428,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
   },
   ruleRight: {
-    alignItems: 'flex-end',
+    alignItems: isMobile ? 'flex-start' : 'flex-end',
     gap: 8,
   },
   berriesBadge: {
@@ -461,5 +452,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    minWidth: 44,
+    minHeight: 44,
   },
 });
